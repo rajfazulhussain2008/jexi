@@ -1,11 +1,13 @@
 # ---------- routes/auth_routes.py ----------
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+"""
+Auth routes using Supabase REST API (HTTP-based).
+This bypasses psycopg2/SQLAlchemy and works on Vercel serverless functions.
+"""
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from database import get_db
 from auth import hash_password, verify_password, create_token, get_current_user
-from models.user import User
+from supabase_rest import sb_select, sb_insert, sb_update, sb_count
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
@@ -16,33 +18,37 @@ class AuthRequest(BaseModel):
     password: str
 
 
-class TokenResponse(BaseModel):
-    token: str
+class ResetPasswordRequest(BaseModel):
     username: str
+    new_password: str
+    admin_secret: str
 
 
 # ── Routes ────────────────────────────────────────────────────────
 @router.post("/setup")
-async def setup(body: AuthRequest, db: Session = Depends(get_db)):
-    """First-time setup — create the initial user. Allowed only once."""
+async def setup(body: AuthRequest):
+    """First-time setup — create the ONLY/initial admin account."""
     try:
-        existing = db.query(User).first()
-        if existing:
+        # Check if any user already exists
+        existing_count = sb_count("users")
+        if existing_count > 0:
             raise HTTPException(status_code=400, detail="Setup already completed. Use /login.")
 
-        user = User(
-            username=body.username,
-            hashed_password=hash_password(body.password),
-            is_admin=True,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        # Create the admin user
+        new_user = sb_insert("users", {
+            "username": body.username,
+            "hashed_password": hash_password(body.password),
+            "is_admin": True,
+        })
 
-        token = create_token({"user_id": user.id, "username": user.username, "is_admin": user.is_admin})
+        token = create_token({
+            "user_id": new_user["id"],
+            "username": new_user["username"],
+            "is_admin": new_user["is_admin"]
+        })
         return {
             "status": "success",
-            "data": {"token": token, "username": user.username, "is_admin": user.is_admin},
+            "data": {"token": token, "username": new_user["username"], "is_admin": new_user["is_admin"]},
         }
     except HTTPException:
         raise
@@ -51,17 +57,25 @@ async def setup(body: AuthRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-async def login(body: AuthRequest, db: Session = Depends(get_db)):
+async def login(body: AuthRequest):
     """Authenticate with username + password, receive a JWT."""
     try:
-        user = db.query(User).filter(User.username == body.username).first()
-        if not user or not verify_password(body.password, user.hashed_password):
+        rows = sb_select("users", filters={"username": body.username})
+        if not rows:
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
-        token = create_token({"user_id": user.id, "username": user.username, "is_admin": user.is_admin})
+        user = rows[0]
+        if not verify_password(body.password, user["hashed_password"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+        token = create_token({
+            "user_id": user["id"],
+            "username": user["username"],
+            "is_admin": user["is_admin"]
+        })
         return {
             "status": "success",
-            "data": {"token": token, "username": user.username, "is_admin": user.is_admin},
+            "data": {"token": token, "username": user["username"], "is_admin": user["is_admin"]},
         }
     except HTTPException:
         raise
@@ -70,19 +84,20 @@ async def login(body: AuthRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-async def me(user_id: int = Depends(get_current_user), db: Session = Depends(get_db)):
+async def me(user_id: int = Depends(get_current_user)):
     """Return the current user's profile from the token."""
     try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
+        rows = sb_select("users", filters={"id": user_id})
+        if not rows:
             raise HTTPException(status_code=404, detail="User not found")
+        u = rows[0]
         return {
             "status": "success",
             "data": {
-                "id": user.id,
-                "username": user.username,
-                "is_admin": user.is_admin,
-                "created_at": str(user.created_at),
+                "id": u["id"],
+                "username": u["username"],
+                "is_admin": u["is_admin"],
+                "created_at": str(u.get("created_at", "")),
             },
         }
     except HTTPException:
@@ -98,35 +113,27 @@ async def logout(user_id: int = Depends(get_current_user)):
 
 
 @router.get("/users")
-async def list_users(db: Session = Depends(get_db)):
-    """List all users — for admin debugging. Shows usernames and admin status."""
+async def list_users():
+    """List all users — admin debugging endpoint."""
     try:
-        users = db.query(User).all()
-        return {
-            "status": "success",
-            "data": [
-                {"id": u.id, "username": u.username, "is_admin": u.is_admin, "created_at": str(u.created_at)}
-                for u in users
-            ]
-        }
+        users = sb_select("users", columns="id,username,is_admin,created_at")
+        return {"status": "success", "data": users}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
-class ResetPasswordRequest(BaseModel):
-    username: str
-    new_password: str
-    admin_secret: str  # A secret to prevent unauthorized resets
-
 @router.post("/reset-password")
-async def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
-    """Reset a user's password using the JWT secret as the admin secret."""
+async def reset_password(body: ResetPasswordRequest):
+    """Reset a user's password. Uses JWT secret as admin_secret."""
     from config import JWT_SECRET
     if body.admin_secret != JWT_SECRET:
         raise HTTPException(status_code=403, detail="Invalid admin secret")
-    user = db.query(User).filter(User.username == body.username).first()
-    if not user:
+
+    rows = sb_select("users", filters={"username": body.username})
+    if not rows:
         raise HTTPException(status_code=404, detail="User not found")
-    user.hashed_password = hash_password(body.new_password)
-    db.commit()
+
+    sb_update("users", "username", body.username, {
+        "hashed_password": hash_password(body.new_password)
+    })
     return {"status": "success", "data": {"message": f"Password reset for {body.username}"}}
