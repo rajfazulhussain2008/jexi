@@ -137,7 +137,7 @@ const app = {
                 case 'plannerView': if (window.plannerHandler) window.plannerHandler.loadPlanner(); break;
                 case 'settingsView': if (window.settingsHandler) window.settingsHandler.loadSettings(); break;
                 case 'adminView': if (window.adminHandler) window.adminHandler.init(); break;
-                case 'communityView': break; // Placeholder
+                case 'communityView': if (window.socialHandler) window.socialHandler.loadCommunity(); break;
                 case 'friendsView': if (window.socialHandler) window.socialHandler.loadFriends(); break;
             }
         } catch (e) {

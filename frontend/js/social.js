@@ -259,6 +259,7 @@ window.socialHandler = {
     },
 
     loadCommunity() {
+        this.setupEventListeners();
         this.renderActivityFeed();
         this.renderLeaderboard();
     },
