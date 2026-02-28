@@ -2,21 +2,28 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import Request, HTTPException, status
 from jose import jwt, JWTError
-from passlib.context import CryptContext
+import bcrypt
 
 from config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRY_HOURS
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
     """Hash a plain-text password using bcrypt."""
-    return pwd_context.hash(password)
+    # Ensure it doesn't exceed 72 bytes to prevent bcrypt ValueError
+    pw_bytes = password.encode('utf-8')[:72]
+    hashed = bcrypt.hashpw(pw_bytes, bcrypt.gensalt())
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain-text password against a bcrypt hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        pw_bytes = plain_password.encode('utf-8')[:72]
+        hash_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(pw_bytes, hash_bytes)
+    except Exception as e:
+        print(f"Bcrypt verification error: {e}")
+        return False
 
 
 def create_token(data: dict) -> str:

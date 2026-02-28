@@ -3,11 +3,11 @@ uvicorn[standard]
 sqlalchemy
 python-dotenv
 python-jose[cryptography]
-passlib[bcrypt]
+bcrypt
+httpx
 pydantic
 python-multipart
 psycopg2-binary
 requests
-httpx
 aiohttp
 cryptography
