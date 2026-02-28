@@ -52,6 +52,13 @@ def sb_update(table: str, filter_col: str, filter_val, data: dict) -> dict:
         result = resp.json()
         return result[0] if isinstance(result, list) and result else {}
 
+def sb_delete(table: str, filter_col: str, filter_val) -> None:
+    """Delete rows where filter_col = filter_val."""
+    url = f"{SUPABASE_URL}/rest/v1/{table}?{filter_col}=eq.{filter_val}"
+    with httpx.Client(timeout=10) as client:
+        resp = client.delete(url, headers=_headers())
+        resp.raise_for_status()
+
 
 def sb_count(table: str) -> int:
     """Count rows in a table."""

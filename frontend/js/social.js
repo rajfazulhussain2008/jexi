@@ -60,6 +60,33 @@ window.socialHandler = {
                 }
             };
         }
+
+        const submitSugBtn = document.getElementById("submitSuggestionBtn");
+        if (submitSugBtn) {
+            submitSugBtn.onclick = async () => {
+                const input = document.getElementById("suggestionTextInput");
+                const msg = document.getElementById("suggestionMessage");
+                if (!input.value.trim()) return;
+
+                submitSugBtn.disabled = true;
+                msg.style.display = "block";
+                msg.className = "mt-2 fs-sm text-center text-primary";
+                msg.innerText = "Sending to AI...";
+
+                try {
+                    await api.post("/social/suggest", { suggestion: input.value.trim() });
+                    input.value = "";
+                    msg.className = "mt-2 fs-sm text-center text-success";
+                    msg.innerText = "Suggestion sent to Admin successfully!";
+                    setTimeout(() => msg.style.display = "none", 4000);
+                } catch (e) {
+                    msg.className = "mt-2 fs-sm text-center text-danger";
+                    msg.innerText = "Failed to send: " + e.message;
+                } finally {
+                    submitSugBtn.disabled = false;
+                }
+            };
+        }
     },
 
     renderFriendsSidebar() {

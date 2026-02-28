@@ -148,3 +148,28 @@ async def upload_file(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+
+@router.post("/suggest")
+async def create_suggestion(
+    suggestion: str = Body(..., embed=True),
+    current_user_id: int = Depends(get_current_user)
+):
+    """Allows a user to submit a suggestion to the admin."""
+    if not suggestion.strip():
+        raise HTTPException(status_code=400, detail="Suggestion cannot be empty")
+        
+    # We will save the suggestion as a memory_fact for the primary admin (assuming admin is user ID 1)
+    admin_id = 1
+    
+    unique_key = f"app_suggestion_{uuid.uuid4().hex[:8]}"
+    
+    try:
+        sb_insert("memory_facts", {
+            "user_id": admin_id,
+            "key": unique_key,
+            "value": f"[From User {current_user_id}]: {suggestion.strip()}",
+            "auto_extracted": False
+        })
+        return {"status": "success", "message": "Suggestion submitted successfully!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit suggestion: {str(e)}")

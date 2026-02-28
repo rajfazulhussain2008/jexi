@@ -52,3 +52,20 @@ async def admin_create_user(
 async def list_all_users(admin: dict = Depends(check_admin)):
     users = sb_select("users", columns="id,username,is_admin")
     return [{"id": u["id"], "username": u["username"], "is_admin": u.get("is_admin", False)} for u in users]
+
+@router.get("/suggestions")
+async def list_suggestions(admin: dict = Depends(check_admin)):
+    # Read all memory facts for Admin (user ID 1) containing app recommendations
+    facts = sb_select("memory_facts", filters={"user_id": admin["id"]})
+    suggestions = [f for f in facts if str(f.get("key", "")).startswith("app_suggestion_")]
+    
+    return [{"id": s["id"], "value": s["value"]} for s in suggestions]
+
+@router.delete("/suggestions/{suggestion_id}")
+async def delete_suggestion(suggestion_id: int, admin: dict = Depends(check_admin)):
+    from supabase_rest import sb_delete
+    try:
+        sb_delete("memory_facts", "id", suggestion_id)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
