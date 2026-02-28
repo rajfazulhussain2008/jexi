@@ -17,6 +17,7 @@ JEXI_BASE_URL = "https://jexi-flax.vercel.app/api/v1"
 # Basic in-memory stores mapping Chat ID
 user_tokens = {}
 admin_users = {}
+last_seen_msg_ids = {} # {chat_id: {friend_id: last_id}}
 user_modes = {}  # Keeps track of whether user is talking to "ai" or a specific friend {"type": "ai", "friend_id": None, "friend_name": None}
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
@@ -98,6 +99,7 @@ def send_welcome(message):
         "*(Admins Only)*\n"
         "`/admin_users` - List all registered Jexi users\n"
         "`/create_user user pass` - Make a new user & friend them automatically\n"
+        "`/suggestions` - View all suggestions and AI action plans\n"
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
@@ -220,6 +222,48 @@ def handle_admin_create_user(message):
         except: pass
     except Exception as e:
         bot.reply_to(message, f"❌ API Error: {e}")
+
+@bot.message_handler(commands=['suggestions'])
+def handle_view_suggestions(message):
+    chat_id = message.chat.id
+    token = get_jexi_token(chat_id)
+    if not token:
+        bot.reply_to(message, "🔒 Please `/login` first.")
+        return
+        
+    if not admin_users.get(chat_id):
+        bot.reply_to(message, "⛔ Access Denied.")
+        return
+        
+    bot.send_chat_action(chat_id, 'typing')
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = httpx.get(f"{JEXI_BASE_URL}/admin/suggestions", headers=headers, timeout=10.0)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        processed = data.get("processed", [])
+        
+        if not processed:
+            bot.reply_to(message, "📭 No AI-refined suggestions found yet. Wait for a friend to submit one!")
+            return
+            
+        report = "📜 **AI-Refined Suggestions History**\n\n"
+        for p in processed:
+            # Value is stored as "Suggestion: [text] \n\n Plan: [text]"
+            val = p.get("value", "")
+            report += f"{val}\n"
+            report += "---" * 5 + "\n\n"
+            
+        # Split message if it's too long for Telegram
+        if len(report) > 4000:
+            for x in range(0, len(report), 4000):
+                bot.send_message(chat_id, report[x:x+4000], parse_mode="Markdown")
+        else:
+            bot.reply_to(message, report, parse_mode="Markdown")
+            
+    except Exception as e:
+        bot.reply_to(message, f"❌ Error: {e}")
 
 @bot.message_handler(commands=['ai'])
 def switch_to_ai(message):
@@ -399,21 +443,96 @@ def poll_suggestions():
                         msg += f"**Suggestion:** _{sugg['value']}_\n\n"
                         msg += f"🤖 **AI Analysis & Action Plan:**\n{plan}"
                         
+
                         # Notify all admins
                         for cid, is_admin in list(admin_users.items()):
                             if is_admin:
                                 bot.send_message(cid, msg, parse_mode="Markdown")
+
+                        # Save the refined plan back to memory_facts so /suggestions can read it later
+                        refined_storage = {
+                            "user_id": 1, 
+                            "key": f"ai_plan_{sugg['id']}",
+                            "value": f"💡 **Suggestion:** {sugg['value']}\n\n🤖 **AI Plan:** {plan}",
+                            "auto_extracted": False
+                        }
                         
-                        # Delete the suggestion so it's not processed again
+                        # Use internal admin headers for direct insert if possible, or defined JEXI auth
+                        from supabase_rest import sb_insert
+                        sb_insert("memory_facts", refined_storage)
+                        
+                        # Delete the RAW suggestion so it's not processed again
                         httpx.delete(f"{JEXI_BASE_URL}/admin/suggestions/{sugg['id']}", headers=headers, timeout=10.0)
         except Exception as e:
             pass
+
+def poll_chat_messages():
+    """Poll for new incoming messages from friends for all logged-in users."""
+    while True:
+        time.sleep(5) # Poll chat every 5 seconds
+        
+        # Iterate over all users currently logged in
+        for chat_id in list(user_tokens.keys()):
+            token = user_tokens.get(chat_id)
+            mode = user_modes.get(chat_id, {"type": "ai"})
+            
+            # Only poll if they are currently in friend-chat mode
+            if mode.get("type") == "friend" and mode.get("friend_id"):
+                friend_id = mode["friend_id"]
+                friend_name = mode["friend_name"]
+                
+                try:
+                    headers = {"Authorization": f"Bearer {token}"}
+                    resp = httpx.get(f"{JEXI_BASE_URL}/social/messages/{friend_id}", headers=headers, timeout=10.0)
+                    
+                    if resp.status_code == 200:
+                        messages = resp.json()
+                        if not messages: continue
+                        
+                        # Filter for messages from the friend (not from the user)
+                        incoming = [m for m in messages if str(m.get("sender_id")) == str(friend_id)]
+                        if not incoming: continue
+                        
+                        # Track last seen ID to only show NEW messages
+                        if chat_id not in last_seen_msg_ids: last_seen_msg_ids[chat_id] = {}
+                        last_id = last_seen_msg_ids[chat_id].get(friend_id, 0)
+                        
+                        new_msgs = [m for m in incoming if m.get("id", 0) > last_id]
+                        
+                        for m in new_msgs:
+                            msg_text = m.get("content", "")
+                            # Convert UTC to IST
+                            raw_ts = m.get('timestamp', '')
+                            ts_str = ""
+                            if raw_ts:
+                                try:
+                                    dt_utc = datetime.fromisoformat(raw_ts.replace('Z', '+00:00'))
+                                    dt_ist = dt_utc + timedelta(hours=5, minutes=30)
+                                    ts_str = f" [{dt_ist.strftime('%H:%M')}]"
+                                except: pass
+                                
+                            alert = f"💬 **{friend_name}**{ts_str}:\n{msg_text}"
+                            if m.get("attachment_url"):
+                                alert += f"\n📎 [Attachment]({m['attachment_url']})"
+                                
+                            bot.send_message(chat_id, alert, parse_mode="Markdown")
+                            
+                            # Update water-mark
+                            last_seen_msg_ids[chat_id][friend_id] = max(last_id, m.get("id", 0))
+                            
+                        # If first time loading history, just set the watermark to latest
+                        if last_id == 0 and incoming:
+                            last_seen_msg_ids[chat_id][friend_id] = max([m.get("id", 0) for m in incoming])
+                            
+                except Exception:
+                    pass
 
 if __name__ == "__main__":
     if TELEGRAM_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN_HERE":
         print("ERROR: Please update TELEGRAM_BOT_TOKEN in this script or your .env file!")
     else:
         print("JEXI Secure Social Telegram Bot is starting up and listening...")
-        # Start suggestion background poller
+        # Start background pollers
         threading.Thread(target=poll_suggestions, daemon=True).start()
+        threading.Thread(target=poll_chat_messages, daemon=True).start()
         bot.infinity_polling(timeout=10, long_polling_timeout=5)
