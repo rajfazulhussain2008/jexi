@@ -22,14 +22,14 @@ if exist "..\frontend" (
 REM Start the development server
 echo 🚀 Starting development server on port 8080...
 echo 📁 Serving frontend from: ..\frontend
-echo 🌐 Open your browser and navigate to: http://localhost:8080
+echo 🌐 Open your browser and navigate to: http://localhost:8000
 echo.
 echo ⚠️  Note: This is a development server for testing
 echo 🛑 Press Ctrl+C to stop the server
 echo =========================================
 echo.
 
-python dev_server.py
+python main.py
 
 echo.
 echo Server stopped.
