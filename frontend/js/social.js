@@ -6,13 +6,22 @@ window.socialHandler = {
 
     async loadFriends() {
         try {
-            const data = await api.get("/social/friends");
-            this.friends = data || [];
+            const resp = await api.get("/social/friends");
+            // Handle response format: {status, data: [...]} or plain array
+            if (resp && resp.status === "success" && Array.isArray(resp.data)) {
+                this.friends = resp.data;
+            } else if (Array.isArray(resp)) {
+                this.friends = resp;
+            } else {
+                this.friends = [];
+            }
             this.renderFriendsSidebar();
             this.setupEventListeners();
             this.loadCommunity();
         } catch (e) {
             console.error("Failed to load friends", e);
+            this.friends = [];
+            this.renderFriendsSidebar();
         }
     },
 

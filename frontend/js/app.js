@@ -85,6 +85,17 @@ const app = {
         if (hamburger) {
             hamburger.addEventListener("click", () => this.toggleSidebar());
         }
+
+        // Logout button
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", () => {
+                localStorage.removeItem("jexi_token");
+                localStorage.removeItem("jexi_is_admin");
+                utils.showToast("Logged out successfully", "success");
+                setTimeout(() => window.location.reload(), 800);
+            });
+        }
     },
 
     switchView(viewId, navIndex) {
