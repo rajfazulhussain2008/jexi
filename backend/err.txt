@@ -1,0 +1,36 @@
+Traceback (most recent call last):
+  File "E:\jarvis\jexi\backend\test_err.py", line 3, in <module>
+    import routes.social_routes
+  File "E:\jarvis\jexi\backend\routes\social_routes.py", line 13, in <module>
+    from services.llm_router import key_manager
+  File "E:\jarvis\jexi\backend\services\llm_router.py", line 15, in <module>
+    from providers.groq_provider import GroqProvider
+  File "E:\jarvis\jexi\backend\providers\__init__.py", line 3, in <module>
+    from providers.gemini_provider import GeminiProvider
+  File "E:\jarvis\jexi\backend\providers\gemini_provider.py", line 2, in <module>
+    import google.generativeai as genai
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\generativeai\__init__.py", line 45, in <module>
+    from google.generativeai import protos
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\generativeai\protos.py", line 74, in <module>
+    from google.ai.generativelanguage_v1beta.types import *
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\ai\generativelanguage_v1beta\__init__.py", line 21, in <module>
+    from .services.cache_service import CacheServiceAsyncClient, CacheServiceClient
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\ai\generativelanguage_v1beta\services\cache_service\__init__.py", line 16, in <module>
+    from .async_client import CacheServiceAsyncClient
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\ai\generativelanguage_v1beta\services\cache_service\async_client.py", line 32, in <module>
+    from google.api_core import exceptions as core_exceptions
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\api_core\exceptions.py", line 29, in <module>
+    from google.rpc import error_details_pb2
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\rpc\error_details_pb2.py", line 21, in <module>
+    from google.protobuf import descriptor as _descriptor
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\protobuf\descriptor.py", line 17, in <module>
+    from google.protobuf.internal import api_implementation
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\protobuf\internal\api_implementation.py", line 51, in <module>
+    if _CanImport('google._upb._message'):
+       ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rajfa\AppData\Roaming\Python\Python314\site-packages\google\protobuf\internal\api_implementation.py", line 41, in _CanImport
+    mod = importlib.import_module(mod_name)
+  File "C:\Python314\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Metaclasses with custom tp_new are not supported.

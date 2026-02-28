@@ -1,0 +1,21 @@
+# Environment
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database
+*.db
+
+# Logs
+*.log
+err.txt
+push_err.log
+
+# OS
+.DS_Store
+Thumbs.db

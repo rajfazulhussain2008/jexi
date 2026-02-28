@@ -1,0 +1,18 @@
+{
+  "name": "JEXI — Personal AI Life OS",
+  "short_name": "JEXI",
+  "description": "Smart lifestyle companion and development assistant with real-time AI capabilities.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0B0E14",
+  "theme_color": "#8B5CF6",
+  "icons": [
+    {
+      "src": "https://ui-avatars.com/api/?name=JEXI&background=8B5CF6&color=fff&size=512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "orientation": "portrait"
+}
