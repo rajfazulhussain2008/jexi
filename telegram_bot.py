@@ -17,6 +17,7 @@ JEXI_BASE_URL = "https://jexi-flax.vercel.app/api/v1"
 # Basic in-memory stores mapping Chat ID
 user_tokens = {}
 admin_users = {}
+user_backend_ids = {} # {chat_id: user_id}
 last_seen_msg_ids = {} # {chat_id: {friend_id: last_id}}
 user_modes = {}  # Keeps track of whether user is talking to "ai" or a specific friend {"type": "ai", "friend_id": None, "friend_name": None}
 
@@ -135,6 +136,7 @@ def login_user(message):
         
         if data.get("status") == "success":
             user_tokens[chat_id] = data["data"]["token"]
+            user_backend_ids[chat_id] = data["data"].get("id")
             
             # Grant admin super-powers in Telegram
             admin_users[chat_id] = data["data"].get("is_admin", False)
@@ -428,7 +430,9 @@ def poll_suggestions():
             headers = {"Authorization": f"Bearer {token}"}
             resp = httpx.get(f"{JEXI_BASE_URL}/admin/suggestions", headers=headers, timeout=10.0)
             if resp.status_code == 200:
-                suggestions = resp.json()
+                data = resp.json()
+                # Iterate over the 'unprocessed' list specifically
+                suggestions = data.get("unprocessed", [])
                 for sugg in suggestions:
                     # AI refine the suggestion
                     prompt = f"A user suggested this for my platform: '{sugg['value']}'. As an expert AI, evaluate this suggestion and give me a clear, step-by-step action plan on what I should do."
@@ -451,7 +455,7 @@ def poll_suggestions():
 
                         # Save the refined plan back to memory_facts so /suggestions can read it later
                         refined_storage = {
-                            "user_id": 1, 
+                            "user_id": user_backend_ids.get(admin_chat_id, 1), 
                             "key": f"ai_plan_{sugg['id']}",
                             "value": f"💡 **Suggestion:** {sugg['value']}\n\n🤖 **AI Plan:** {plan}",
                             "auto_extracted": False

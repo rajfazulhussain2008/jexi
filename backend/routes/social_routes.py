@@ -158,8 +158,11 @@ async def create_suggestion(
     if not suggestion.strip():
         raise HTTPException(status_code=400, detail="Suggestion cannot be empty")
         
-    # We will save the suggestion as a memory_fact for the primary admin (assuming admin is user ID 1)
-    admin_id = 1
+    # We will save the suggestion as a memory_fact for the primary admin
+    admin_rows = sb_select("users", filters={"is_admin": True})
+    if not admin_rows:
+        raise HTTPException(status_code=500, detail="No admin found to receive suggestion")
+    admin_id = admin_rows[0]["id"]
     
     unique_key = f"app_suggestion_{uuid.uuid4().hex[:8]}"
     

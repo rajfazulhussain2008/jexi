@@ -55,11 +55,16 @@ async def list_all_users(admin: dict = Depends(check_admin)):
 
 @router.get("/suggestions")
 async def list_suggestions(admin: dict = Depends(check_admin)):
-    # Read all memory facts for Admin (user ID 1) containing app recommendations
+    # Read all memory facts for Admin containing app recommendations
     facts = sb_select("memory_facts", filters={"user_id": admin["id"]})
-    suggestions = [f for f in facts if str(f.get("key", "")).startswith("app_suggestion_")]
     
-    return [{"id": s["id"], "value": s["value"]} for s in suggestions]
+    unprocessed = [f for f in facts if str(f.get("key", "")).startswith("app_suggestion_")]
+    processed = [f for f in facts if str(f.get("key", "")).startswith("ai_plan_")]
+    
+    return {
+        "unprocessed": [{"id": s["id"], "key": s["key"], "value": s["value"]} for s in unprocessed],
+        "processed": [{"id": s["id"], "key": s["key"], "value": s["value"]} for s in processed]
+    }
 
 @router.delete("/suggestions/{suggestion_id}")
 async def delete_suggestion(suggestion_id: int, admin: dict = Depends(check_admin)):
