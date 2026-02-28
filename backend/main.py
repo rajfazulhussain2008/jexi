@@ -32,9 +32,16 @@ except Exception as e:
     admin_router = None
 
 # Initialize db configuration
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"Database init skipped or failed: {e}")
 
 app = FastAPI(title="JEXI AI Life OS")
+
+@app.get("/api/v1/health-check")
+async def health():
+    return {"status": "ok", "message": "Backend is alive!"}
 
 # Configure CORS for Mobile App Support
 app.add_middleware(
