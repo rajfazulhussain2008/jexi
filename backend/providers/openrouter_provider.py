@@ -4,9 +4,9 @@ from providers.base import BaseProvider
 
 
 OPENROUTER_MODELS = [
-    "meta-llama/llama-3-8b-instruct:free",
-    "mistralai/mistral-7b-instruct:free",
-    "huggingfaceh4/zephyr-7b-beta:free"
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free"
 ]
 
 
