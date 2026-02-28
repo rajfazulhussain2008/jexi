@@ -242,7 +242,8 @@ window.socialHandler = {
 
         try {
             // Fetch from backend
-            const activities = await api.get("/social/activity");
+            const activitiesRaw = await api.get("/social/activity");
+            const activities = Array.isArray(activitiesRaw) ? activitiesRaw : (activitiesRaw && activitiesRaw.data && Array.isArray(activitiesRaw.data)) ? activitiesRaw.data : [];
 
             feedList.innerHTML = "";
             activities.forEach(item => {
@@ -269,7 +270,8 @@ window.socialHandler = {
         if (!board) return;
 
         try {
-            const data = await api.get("/social/leaderboard");
+            const dataRaw = await api.get("/social/leaderboard");
+            const data = Array.isArray(dataRaw) ? dataRaw : (dataRaw && dataRaw.data && Array.isArray(dataRaw.data)) ? dataRaw.data : [];
 
             board.innerHTML = "";
             data.forEach(p => {
