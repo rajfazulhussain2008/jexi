@@ -3,6 +3,7 @@ import httpx
 import telebot
 import threading
 import time
+from datetime import datetime, timedelta
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
 
@@ -305,9 +306,19 @@ def fetch_history(message):
         # Format the last 5 messages
         history_str = f"📜 **Last Messages with {mode['friend_name']}**\n\n"
         for h in history[-5:]:
-             ts = h.get('timestamp', '')[11:16] # extract HH:MM
+             raw_ts = h.get('timestamp', '')
+             ts_str = "??:??"
+             if raw_ts:
+                 try:
+                     # Parse UTC timestamp and convert to IST (+5:30)
+                     dt_utc = datetime.fromisoformat(raw_ts.replace('Z', '+00:00'))
+                     dt_ist = dt_utc + timedelta(hours=5, minutes=30)
+                     ts_str = dt_ist.strftime("%H:%M")
+                 except:
+                     ts_str = raw_ts[11:16] if len(raw_ts) > 16 else "??:??"
+                     
              sender = "Them" if str(h.get('sender_id')) == str(friend_id) else "You"
-             history_str += f"*{sender}* [{ts}]: {h.get('content', '')}\n"
+             history_str += f"*{sender}* [{ts_str}]: {h.get('content', '')}\n"
              if h.get('attachment_url'):
                  history_str += f"📎 [Attachment]({h['attachment_url']})\n"
                  

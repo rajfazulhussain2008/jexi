@@ -108,10 +108,11 @@ async def chat(
                 tool_result = None
 
         # Build system prompt
-        now = datetime.now(timezone.utc)
+        now_utc = datetime.now(timezone.utc)
+        now_ist = now_utc + timedelta(hours=5, minutes=30)
         system_parts = [
             f"You are {ASSISTANT_NAME}, a personal AI Life OS assistant for {USER_NAME}.",
-            f"Today is {now.strftime('%A, %B %d, %Y')}.",
+            f"Current India Time (IST): {now_ist.strftime('%A, %B %d, %Y, %H:%M:%S')}.",
             "Be helpful, concise, and proactive. Offer actionable advice.",
         ]
         if context.get("facts"):
