@@ -18,12 +18,15 @@ def _headers():
     }
 
 
-def sb_select(table: str, filters: dict = None, columns: str = "*") -> list:
-    """Select rows from a table with optional equality filters."""
+def sb_select(table: str, filters: dict = None, columns: str = "*", query_string: str = None) -> list:
+    """Select rows from a table with optional equality filters or raw query."""
     url = f"{SUPABASE_URL}/rest/v1/{table}?select={columns}"
     if filters:
         for key, value in filters.items():
             url += f"&{key}=eq.{value}"
+    if query_string:
+        url += f"&{query_string}"
+    
     with httpx.Client(timeout=10) as client:
         resp = client.get(url, headers=_headers())
         resp.raise_for_status()
@@ -58,7 +61,6 @@ def sb_count(table: str) -> int:
         resp = client.head(url, headers=headers)
         resp.raise_for_status()
         content_range = resp.headers.get("content-range", "0-0/0")
-        # content-range format: "0-0/TOTAL" or "*/TOTAL"
         try:
             return int(content_range.split("/")[-1])
         except Exception:

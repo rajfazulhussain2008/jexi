@@ -67,7 +67,6 @@ def detect_tool(message: str) -> Optional[str]:
 async def chat(
     body: ChatRequest,
     user_id: int = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
     """Send a message to the AI assistant."""
     try:
@@ -77,7 +76,7 @@ async def chat(
         from models.conversation import Conversation
 
         llm_router = get_llm_router()
-        memory_svc = MemoryService(db)
+        memory_svc = MemoryService()
         tools_svc = ToolsService()
 
         session_id = body.session_id or str(uuid.uuid4())
@@ -140,17 +139,9 @@ async def chat(
 
         response_time = time.time() - start_time
 
-        # Save user message
-        user_msg = Conversation(
-            user_id=user_id,
-            session_id=session_id,
-            role="user",
-            content=body.message,
-        )
-        db.add(user_msg)
-
-        # Save assistant response
-        assistant_msg = Conversation(
+        # Save conversations using MemoryService via REST
+        memory_svc.save_message(user_id=user_id, session_id=session_id, role="user", content=body.message)
+        memory_svc.save_message(
             user_id=user_id,
             session_id=session_id,
             role="assistant",
@@ -159,8 +150,6 @@ async def chat(
             model=result.get("model"),
             response_time=response_time,
         )
-        db.add(assistant_msg)
-        db.commit()
 
         # Auto-extract facts in background (don't block response)
         try:
@@ -198,7 +187,6 @@ async def _auto_extract_facts(user_id, message, memory_svc):
 async def chat_stream(
     body: ChatRequest,
     user_id: int = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
     """Stream a chat response using Server-Sent Events."""
     try:
@@ -207,7 +195,7 @@ async def chat_stream(
         from models.conversation import Conversation
 
         llm_router = get_llm_router()
-        memory_svc = MemoryService(db)
+        memory_svc = MemoryService()
 
         session_id = body.session_id or str(uuid.uuid4())
 
@@ -248,9 +236,8 @@ async def chat_stream(
 
             # Save conversation
             try:
-                db.add(Conversation(user_id=user_id, session_id=session_id, role="user", content=body.message))
-                db.add(Conversation(user_id=user_id, session_id=session_id, role="assistant", content=full_response.strip()))
-                db.commit()
+                memory_svc.save_message(user_id=user_id, session_id=session_id, role="user", content=body.message)
+                memory_svc.save_message(user_id=user_id, session_id=session_id, role="assistant", content=full_response.strip())
             except Exception:
                 pass
 
