@@ -1,6 +1,4 @@
 import asyncio
-import google.generativeai as genai
-from google.generativeai.types import content_types
 from providers.base import BaseProvider
 
 
@@ -33,6 +31,7 @@ class GeminiProvider(BaseProvider):
     async def chat(self, messages: list[dict], model: str | None = None) -> dict:
         used_model = model or GEMINI_MODELS[0]
         try:
+            import google.generativeai as genai
             # We must configure it before the call, in case another instance changed it
             genai.configure(api_key=self.api_key)
             

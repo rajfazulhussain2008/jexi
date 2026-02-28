@@ -1,5 +1,4 @@
 import asyncio
-from groq import Groq
 from providers.base import BaseProvider
 
 
@@ -16,7 +15,11 @@ class GroqProvider(BaseProvider):
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.client = Groq(api_key=api_key, timeout=30.0)
+        try:
+            from groq import Groq
+            self.client = Groq(api_key=api_key, timeout=30.0)
+        except ImportError:
+            self.client = None
 
     @property
     def name(self) -> str:

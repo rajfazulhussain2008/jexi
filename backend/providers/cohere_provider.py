@@ -1,5 +1,4 @@
 import asyncio
-import cohere
 from providers.base import BaseProvider
 
 
@@ -14,9 +13,11 @@ class CohereProvider(BaseProvider):
 
     def __init__(self, api_key: str):
         self.api_key = api_key
-        # Timeout configured in caller or below using asyncio.wait_for
-        # Setting a timeout in client can also be a way, but standard wait_for is fine
-        self.client = cohere.AsyncClientV2(api_key=api_key, timeout=30.0)
+        try:
+            import cohere
+            self.client = cohere.AsyncClientV2(api_key=api_key, timeout=30.0)
+        except ImportError:
+            self.client = None
 
     @property
     def name(self) -> str:
