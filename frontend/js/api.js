@@ -187,9 +187,12 @@ class API {
             } else {
                 // Use existing API authentication
                 const response = await this.post("/auth/setup", { username, password });
-                if (response && response.status === "success" && response.data.token) {
-                    localStorage.setItem(this.tokenKey, response.data.token);
-                    localStorage.setItem("jexi_is_admin", response.data.is_admin || false);
+                // Be lenient: handle different response formats
+                const token = response?.data?.token || response?.token || response?.access_token;
+                const isAdmin = response?.data?.is_admin ?? response?.is_admin ?? false;
+                if (token) {
+                    localStorage.setItem(this.tokenKey, token);
+                    localStorage.setItem("jexi_is_admin", isAdmin);
                 }
                 utils.showToast("Account created successfully", "success");
                 return true;

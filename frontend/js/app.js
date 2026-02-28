@@ -145,15 +145,23 @@ const app = {
             return;
         }
 
+        const goToApp = () => {
+            this.showMainApp();
+            this.setupNavHandlers();
+            this.switchView('dashboardView', 0);
+        };
+
         try {
             // Try login first
             await api.login(user, pass);
-            this.init();
+            goToApp();
         } catch (loginErr) {
             // If login fails, try setup (first-time account creation)
             try {
                 await api.setup(user, pass);
-                this.init();
+                // After setup, try to login to get a fresh token
+                try { await api.login(user, pass); } catch (e2) { }
+                goToApp();
             } catch (setupErr) {
                 utils.showToast("Login failed. Check your username and password.", "error");
             }
