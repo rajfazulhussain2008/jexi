@@ -104,16 +104,9 @@ async def get_activity():
     """Empty state activity feed for fresh start."""
     return []
 
-# File Upload Endpoint using Supabase Storage
-from supabase import create_client, Client
+# File Upload Endpoint using Supabase Storage REST API
 from config import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-
-supabase: Client = None
-if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
-    try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    except Exception as e:
-        print(f"Error initializing Supabase client for storage: {e}")
+import httpx
 
 @router.post("/upload")
 async def upload_file(
@@ -121,7 +114,7 @@ async def upload_file(
     current_user_id: int = Depends(get_current_user)
 ):
     """Uploads a file to Supabase Storage and returns the public URL."""
-    if not supabase:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         raise HTTPException(status_code=500, detail="Supabase Storage is not configured")
         
     try:
@@ -133,16 +126,19 @@ async def upload_file(
         # Read file contents
         file_contents = await file.read()
         
-        # Upload to supabase bucket
-        # (Be sure the 'jexi-files' bucket exists and is set to Public)
-        res = supabase.storage.from_(bucket_name).upload(
-            file=file_contents,
-            path=unique_filename,
-            file_options={"content-type": file.content_type}
-        )
+        # Upload to supabase bucket using REST API
+        url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{unique_filename}"
+        headers = {
+            "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": file.content_type
+        }
+        
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(url, headers=headers, content=file_contents)
+            resp.raise_for_status()
         
         # Get public url
-        public_url = supabase.storage.from_(bucket_name).get_public_url(unique_filename)
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{unique_filename}"
         
         return {"url": public_url}
         
