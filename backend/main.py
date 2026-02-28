@@ -1,4 +1,11 @@
 import os
+import sys
+
+# Ensure this directory is in the path for Vercel and other runners
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
