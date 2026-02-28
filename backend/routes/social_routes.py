@@ -23,7 +23,7 @@ async def get_messages(friend_id: int, current_user_id: int = Depends(get_curren
     
     # Combine and sort locally
     messages = sent + received
-    messages.sort(key=lambda x: x.get("timestamp", ""))
+    messages.sort(key=lambda x: x.get("timestamp") or "")
     
     return messages
 
@@ -38,11 +38,13 @@ async def send_message(
     if not content.strip() and not attachment_url:
         raise HTTPException(status_code=400, detail="Message cannot be completely empty")
         
+    from datetime import datetime, timezone
     msg = sb_insert("chat_messages", {
         "sender_id": current_user_id,
         "receiver_id": friend_id,
         "content": content.strip(),
-        "attachment_url": attachment_url
+        "attachment_url": attachment_url,
+        "timestamp": datetime.now(timezone.utc).isoformat()
     })
     
     return msg

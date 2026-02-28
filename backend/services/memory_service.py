@@ -61,6 +61,7 @@ class MemoryService:
     ):
         """Save a message to Conversation history."""
         try:
+            from datetime import datetime, timezone
             sb_insert("conversations", {
                 "user_id": user_id,
                 "session_id": session_id,
@@ -68,7 +69,8 @@ class MemoryService:
                 "content": content,
                 "provider": provider,
                 "model": model,
-                "response_time": response_time
+                "response_time": response_time,
+                "created_at": datetime.now(timezone.utc).isoformat()
             })
         except Exception as e:
             print(f"Failed to save message: {e}")
