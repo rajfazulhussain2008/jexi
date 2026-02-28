@@ -91,7 +91,11 @@ window.chatHandler = {
         } catch (err) {
             console.error("Chat error:", err);
             this.removeTyping();
-            this.addMessage("assistant", "I'm sorry, an error occurred while processing your request.");
+            if (err.message && err.message.includes("Unauthorized")) {
+                this.addMessage("assistant", "⚠️ Your session has expired. Please <strong><a href='#' onclick='localStorage.clear();location.reload();'>click here to log in again</a></strong>.");
+            } else {
+                this.addMessage("assistant", "I'm sorry, an error occurred while processing your request.");
+            }
         }
     },
 
