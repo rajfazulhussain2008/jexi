@@ -7,7 +7,7 @@ if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,6 +49,22 @@ app = FastAPI(title="JEXI AI Life OS")
 @app.get("/api/v1/health-check")
 async def health():
     return {"status": "ok", "message": "Backend is alive!"}
+
+@app.get("/api/v1/debug/token")
+async def debug_token(request: Request):
+    """Debug endpoint — checks if the Authorization header token is valid."""
+    from auth import verify_token
+    from config import JWT_SECRET
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header:
+        return {"valid": False, "reason": "No Authorization header found"}
+    if not auth_header.startswith("Bearer "):
+        return {"valid": False, "reason": "Header does not start with 'Bearer '", "header": auth_header[:50]}
+    token = auth_header.split(" ", 1)[1]
+    payload = verify_token(token)
+    if payload is None:
+        return {"valid": False, "reason": "Token invalid or expired", "token_preview": token[:30] + "...", "jwt_secret_preview": JWT_SECRET[:10] + "..."}
+    return {"valid": True, "user_id": payload.get("user_id"), "username": payload.get("username")}
 
 # Configure CORS for Mobile App Support
 app.add_middleware(
