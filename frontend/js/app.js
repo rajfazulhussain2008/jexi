@@ -163,19 +163,10 @@ const app = {
         };
 
         try {
-            // Try login first
             await api.login(user, pass);
             goToApp();
         } catch (loginErr) {
-            // If login fails, try setup (first-time account creation)
-            try {
-                await api.setup(user, pass);
-                // After setup, try to login to get a fresh token
-                try { await api.login(user, pass); } catch (e2) { }
-                goToApp();
-            } catch (setupErr) {
-                utils.showToast("Login failed. Check your username and password.", "error");
-            }
+            utils.showToast("Login failed. Check your username and password.", "error");
         }
     },
 

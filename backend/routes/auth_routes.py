@@ -95,3 +95,38 @@ async def me(user_id: int = Depends(get_current_user), db: Session = Depends(get
 async def logout(user_id: int = Depends(get_current_user)):
     """Logout — client should discard the token."""
     return {"status": "success", "data": {"message": "Logged out"}}
+
+
+@router.get("/users")
+async def list_users(db: Session = Depends(get_db)):
+    """List all users — for admin debugging. Shows usernames and admin status."""
+    try:
+        users = db.query(User).all()
+        return {
+            "status": "success",
+            "data": [
+                {"id": u.id, "username": u.username, "is_admin": u.is_admin, "created_at": str(u.created_at)}
+                for u in users
+            ]
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+class ResetPasswordRequest(BaseModel):
+    username: str
+    new_password: str
+    admin_secret: str  # A secret to prevent unauthorized resets
+
+@router.post("/reset-password")
+async def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset a user's password using the JWT secret as the admin secret."""
+    from config import JWT_SECRET
+    if body.admin_secret != JWT_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid admin secret")
+    user = db.query(User).filter(User.username == body.username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.hashed_password = hash_password(body.new_password)
+    db.commit()
+    return {"status": "success", "data": {"message": f"Password reset for {body.username}"}}
