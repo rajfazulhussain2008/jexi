@@ -342,10 +342,11 @@
                     <header class="view-header flex-between">
                         <h1>Tasks</h1>
                         <div class="header-actions">
-                            <button class="btn-secondary" id="aiCreateTaskBtn" title="AI Add Task"><i
-                                    class="fas fa-magic"></i> AI
+                            <button class="btn-secondary" id="aiCreateTaskBtn" onclick="window.tasksHandler.aiCreate()"
+                                title="AI Add Task"><i class="fas fa-magic"></i> AI
                                 Add</button>
-                            <button class="btn-primary" id="addTaskBtn" title="Add Task"><i class="fas fa-plus"></i> Add
+                            <button class="btn-primary" id="addTaskBtn" onclick="window.tasksHandler.showAddModal()"
+                                title="Add Task"><i class="fas fa-plus"></i> Add
                                 Task</button>
                         </div>
                     </header>
@@ -360,35 +361,26 @@
                     <div class="filter-bar">
                         <div class="search-box">
                             <i class="fas fa-search"></i>
-                            <input type="text" placeholder="Search tasks..." title="Search tasks">
+                            <input type="text" id="taskSearch" oninput="window.tasksHandler.loadTasks()"
+                                placeholder="Search tasks..." title="Search tasks">
                         </div>
-                        <select title="Filter by status">
-                            <option>Status: All</option>
-                            <option>Pending</option>
-                            <option>Done</option>
+                        <select id="taskStatusFilter" onchange="window.tasksHandler.loadTasks()"
+                            title="Filter by status">
+                            <option value="">Status: All</option>
+                            <option value="pending">Pending</option>
+                            <option value="done">Done</option>
                         </select>
-                        <select title="Filter by priority">
-                            <option>Priority: All</option>
-                            <option>Urgent</option>
-                            <option>High</option>
-                            <option>Normal</option>
-                            <option>Low</option>
-                        </select>
-                        <select title="Filter by category">
-                            <option>Category: All</option>
-                            <option>Work</option>
-                            <option>Personal</option>
+                        <select id="taskPriorityFilter" onchange="window.tasksHandler.loadTasks()"
+                            title="Filter by priority">
+                            <option value="">Priority: All</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
                         </select>
                     </div>
 
-                    <div class="task-list" id="mainTasksList">
-                        <!-- Task Item -->
-                        <div class="task-list" id="mainTasksList">
-                            <div class="empty-state">
-                                <i class="fas fa-check-double fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">No tasks found. Click "Add Task" to get started.</p>
-                            </div>
-                        </div>
+                    <div class="tasks-container" id="tasks-list">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
 
@@ -396,896 +388,996 @@
                 <div id="goalsView" class="view">
                     <header class="view-header flex-between">
                         <h1>Goals</h1>
-                        <button class="btn-primary" id="addGoalBtn" title="New Goal"><i class="fas fa-plus"></i> New
+                        <button class="btn-primary" id="addGoalBtn" onclick="window.goalsHandler.showAddModal()"
+                            title="New Goal"><i class="fas fa-plus"></i> New
                             Goal</button>
                     </header>
 
                     <div class="tabs-nav">
-                        <button class="tab-btn active" title="All goals">All</button>
-                        <button class="tab-btn" title="Life goals">Life</button>
-                        <button class="tab-btn" title="Yearly goals">Yearly</button>
-                        <button class="tab-btn" title="Quarterly goals">Quarterly</button>
-                        <button class="tab-btn" title="Monthly goals">Monthly</button>
+                        <select id="goals-filter" onchange="window.goalsHandler.loadGoals()" class="form-control w-auto"
+                            title="Goal filter">
+                            <option value="">All Goals</option>
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                        <button class="btn-secondary ml-2"
+                            onclick="window.goalsHandler.loadHierarchy()">Hierarchy</button>
+                        <button class="btn-secondary ml-2" onclick="window.goalsHandler.aiSuggest()">AI Suggest</button>
+                        <button class="btn-secondary ml-2"
+                            onclick="window.goalsHandler.progressReport()">Report</button>
                     </div>
 
-                    <div class="goals-grid" id="mainGoalsList">
-                        <div class="empty-state">
-                            <p class="text-muted">No active goals found.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 5. HABITS VIEW -->
-                <div id="habitsView" class="view">
-                    <header class="view-header flex-between">
-                        <h1>Habits</h1>
-                        <button class="btn-primary" id="addHabitBtn" title="New Habit"><i class="fas fa-plus"></i> New
-                            Habit</button>
-                    </header>
-
-                    <div class="card ai-insights-card mb-4 highlight-border" id="habitInsights">
-                        <div class="card-header">
-                            <h3><i class="fas fa-lightbulb text-yellow"></i> AI Habit Insight</h3>
-                        </div>
-                        <p id="habitInsightText">Establishing your baseline... Check back after a few days of tracking!
-                        </p>
-                    </div>
-
-                    <div class="habits-week-view" id="mainHabitsView">
-                        <div class="empty-state py-5">
-                            <p class="text-muted">No habits tracked yet.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 6. JOURNAL VIEW -->
-                <div id="journalView" class="view">
-                    <header class="view-header flex-between">
-                        <h1>Journal</h1>
-                        <input type="date" id="journalDateSelector" class="date-selector" value="2026-10-23"
-                            title="Select date">
-                    </header>
-
-                    <div class="journal-layout">
-                        <!-- Editor col -->
-                        <div class="journal-editor-col">
-                            <div class="card journal-form">
-                                <!-- Sliders -->
-                                <div class="journal-metrics-row">
-                                    <div class="metric-group">
-                                        <label>Mood <span id="moodDisp">😊 (8/10)</span></label>
-                                        <input type="range" class="form-range" min="1" max="10" value="8" step="1"
-                                            title="Mood rating">
-                                    </div>
-                                    <div class="metric-group">
-                                        <label>Energy <span id="energyDisp">⚡ (7/10)</span></label>
-                                        <input type="range" class="form-range" min="1" max="10" value="7" step="1"
-                                            title="Energy rating">
-                                    </div>
-                                </div>
-                                <!-- Content -->
-                                <div class="form-group mb-3">
-                                    <label>How was your day?</label>
-                                    <textarea class="form-control" rows="8"
-                                        placeholder="Write your thoughts... Supports markdown."
-                                        title="Journal entry"></textarea>
-                                </div>
-
-                                <div class="structured-prompts">
-                                    <div class="form-group">
-                                        <label><i class="fas fa-heart text-red"></i> Gratitudes (comma
-                                            separated)</label>
-                                        <input type="text" class="form-control"
-                                            placeholder="Health, Family, that good cup of coffee..." title="Gratitudes">
-                                    </div>
-                                    <div class="form-group">
-                                        <label><i class="fas fa-trophy text-yellow"></i> Wins</label>
-                                        <input type="text" class="form-control" placeholder="Finished project setup..."
-                                            title="Wins">
-                                    </div>
-                                    <div class="form-group">
-                                        <label><i class="fas fa-mountain text-purple"></i> Challenges</label>
-                                        <input type="text" class="form-control" placeholder="Got stuck on a CSS bug..."
-                                            title="Challenges">
-                                    </div>
-                                </div>
-
-                                <button class="btn-primary w-100 mt-3" title="Save Entry"><i class="fas fa-save"></i>
-                                    Save Entry</button>
+                    <div class="goals-layout grid-3-col mt-4">
+                        <div class="col-span-2">
+                            <div class="goals-grid" id="goals-list">
+                                <!-- Populated by JS -->
                             </div>
                         </div>
-
-                        <!-- Sidebar col -->
-                        <div class="journal-side-col">
-                            <button class="btn-secondary w-100 mb-3" title="AI Analyze Entry"><i
-                                    class="fas fa-robot"></i> AI Analyze
-                                Entry</button>
-
-                            <div class="card prompts-card">
-                                <h3><i class="fas fa-pen-fancy"></i> Suggested Prompts</h3>
-                                <ul class="prompts-list">
-                                    <li>What did you learn about yourself today?</li>
-                                    <li>What is draining your energy right now?</li>
-                                    <li>Describe a moment you felt proud today.</li>
-                                </ul>
+                        <div class="goals-sidebar">
+                            <div class="card mb-3" id="goals-ai-panel">
+                                <h3>AI Insights</h3>
+                                <p class="text-xs opacity-70">Click 'AI Suggest' to generate ideas.</p>
                             </div>
-
-                            <div class="card mood-chart-card mt-3">
-                                <h3>Mood Trend</h3>
-                                <div class="chart-wrapper"><canvas id="moodChart" height="150"></canvas></div>
+                            <div class="card mb-3" id="goals-risk-panel">
+                                <h3>Goals At Risk</h3>
+                                <p class="text-xs opacity-70">No risks detected yet.</p>
+                            </div>
+                            <div class="card" id="goals-hierarchy" style="display:none;">
+                                <h3>Hierarchy</h3>
+                                <div class="tree-container"></div>
                             </div>
                         </div>
                     </div>
                 </div>
+        </div>
 
-                <!-- 7. FINANCE VIEW -->
-                <div id="financeView" class="view">
-                    <header class="view-header flex-between">
-                        <h1>Finance</h1>
-                        <div class="header-actions">
-                            <button class="btn-secondary" title="AI Parse"><i class="fas fa-magic"></i> AI
-                                Parse</button>
-                            <button class="btn-primary" title="Transaction"><i class="fas fa-plus"></i>
-                                Transaction</button>
-                        </div>
-                    </header>
+        <!-- 5. HABITS VIEW -->
+        <div id="habitsView" class="view">
+            <header class="view-header flex-between">
+                <h1>Habits</h1>
+                <button class="btn-primary" id="addHabitBtn" onclick="window.habitsHandler.showAddHabitModal()"
+                    title="New Habit"><i class="fas fa-plus"></i> New
+                    Habit</button>
+            </header>
 
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon b-green"><i class="fas fa-arrow-down"></i></div>
-                            <div class="stat-details">
-                                <span class="stat-label">Income (Oct)</span>
-                                <span class="stat-val" id="finance-income">$0.00</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon b-red"><i class="fas fa-arrow-up"></i></div>
-                            <div class="stat-details">
-                                <span class="stat-label">Expenses (Oct)</span>
-                                <span class="stat-val" id="finance-expenses">$0.00</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon b-blue"><i class="fas fa-piggy-bank"></i></div>
-                            <div class="stat-details">
-                                <span class="stat-label">Savings</span>
-                                <span class="stat-val" id="finance-savings">$0.00</span>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon b-purple"><i class="fas fa-percent"></i></div>
-                            <div class="stat-details">
-                                <span class="stat-label">Savings Rate</span>
-                                <span class="stat-val" id="finance-savings-rate">0%</span>
-                            </div>
-                        </div>
+            <div class="habits-layout grid-3-col mt-4">
+                <div class="col-span-2">
+                    <div class="habits-list" id="habits-list">
+                        <!-- Populated by JS -->
                     </div>
+                </div>
+                <div class="habits-sidebar">
+                    <div class="card mb-3" id="habits-ai-panel">
+                        <h3>AI Insights</h3>
+                        <p class="text-xs opacity-70">Log habits to see patterns.</p>
+                    </div>
+                    <div class="card" id="habits-leaderboard">
+                        <h3>🔥 Streaks</h3>
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                    <div class="dashboard-rows mt-4">
-                        <div class="card module-card flex-2">
-                            <h3>Recent Transactions</h3>
-                            <div class="transaction-list" id="recentTransactionsList">
-                                <p class="text-muted p-3">No recent transactions.</p>
+        <!-- 6. JOURNAL VIEW -->
+        <div id="journalView" class="view">
+            <header class="view-header flex-between">
+                <h1>Journal</h1>
+                <input type="date" id="journalDateSelector" class="date-selector" value="2026-03-01"
+                    onchange="window.journalHandler.loadJournal()" title="Select date">
+            </header>
+
+            <div class="journal-layout grid-3-col mt-4">
+                <!-- Editor col -->
+                <div class="col-span-2 journal-editor-col" id="journal-editor-col">
+                    <div class="card journal-form">
+                        <!-- Sliders -->
+                        <div class="journal-metrics-row mb-4">
+                            <div class="metric-group">
+                                <label>Mood <span id="moodDisp">😊 (8/10)</span></label>
+                                <input type="range" id="journal-mood" class="form-range" min="1" max="10" value="8"
+                                    step="1" title="Mood rating">
+                            </div>
+                            <div class="metric-group">
+                                <label>Energy <span id="energyDisp">⚡ (7/10)</span></label>
+                                <input type="range" id="journal-energy" class="form-range" min="1" max="10" value="7"
+                                    step="1" title="Energy rating">
+                            </div>
+                        </div>
+                        <!-- Content -->
+                        <div class="form-group mb-3">
+                            <label>How was your day?</label>
+                            <textarea id="journal-content" class="form-control" rows="8"
+                                placeholder="Write your thoughts... Supports markdown."
+                                title="Journal entry"></textarea>
+                        </div>
+
+                        <div class="structured-prompts grid-2-col gap-3">
+                            <div class="form-group">
+                                <label><i class="fas fa-heart text-red"></i> Gratitude</label>
+                                <input type="text" id="journal-gratitude" class="form-control"
+                                    placeholder="What are you thankful for?" title="Gratitude">
+                            </div>
+                            <div class="form-group">
+                                <label><i class="fas fa-trophy text-yellow"></i> Wins</label>
+                                <input type="text" id="journal-wins" class="form-control"
+                                    placeholder="What did you achieve?" title="Wins">
+                            </div>
+                            <div class="form-group col-span-2">
+                                <label><i class="fas fa-mountain text-purple"></i> Challenges</label>
+                                <input type="text" id="journal-challenges" class="form-control"
+                                    placeholder="Any obstacles?" title="Challenges">
                             </div>
                         </div>
 
-                        <div class="card module-card flex-1" id="budgetStatusList">
-                            <h3>Budget vs Spend</h3>
-                            <p class="text-muted p-3">Set up a budget to track spending.</p>
-                        </div>
+                        <button class="btn-primary w-100 mt-3" onclick="window.journalHandler.saveEntry()"
+                            title="Save Entry"><i class="fas fa-save"></i>
+                            Save Entry</button>
                     </div>
                 </div>
 
-                <!-- 8. HEALTH VIEW -->
-                <div id="healthView" class="view">
-                    <header class="view-header">
-                        <h1>Health & Wellbeing</h1>
-                    </header>
+                <!-- Sidebar col -->
+                <div class="journal-side-col">
+                    <button class="btn-secondary w-100 mb-3" onclick="window.journalHandler.aiAnalyzeEntry()"
+                        title="AI Analyze Entry"><i class="fas fa-robot"></i> AI Analyze Entry</button>
 
-                    <div class="dashboard-grid">
-                        <div class="dashboard-main-col">
-                            <div class="card">
-                                <h3>Today's Log</h3>
-                                <form class="health-log-form grid-2-col">
-                                    <div class="form-group">
-                                        <label>Sleep Hours</label>
-                                        <div class="input-with-icon">
-                                            <i class="fas fa-bed"></i>
-                                            <input type="number" step="0.5" class="form-control" placeholder="e.g. 7.5"
-                                                title="Sleep hours">
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Sleep Quality (1-10)</label>
-                                        <input type="range" class="form-range" min="1" max="10" value="7"
-                                            title="Sleep quality">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Water (Liters)</label>
-                                        <div class="input-with-icon">
-                                            <i class="fas fa-tint"></i>
-                                            <input type="number" step="0.1" class="form-control" placeholder="e.g. 2.5"
-                                                title="Water intake">
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Steps</label>
-                                        <div class="input-with-icon">
-                                            <i class="fas fa-shoe-prints"></i>
-                                            <input type="number" class="form-control" placeholder="e.g. 8000"
-                                                title="Daily steps">
-                                        </div>
-                                    </div>
-                                    <div class="form-group col-span-2">
-                                        <label>Exercise (Type & Duration mins)</label>
-                                        <div class="flex-row">
-                                            <input type="text" class="form-control" placeholder="Running, Gym, Yoga..."
-                                                title="Exercise type">
-                                            <input type="number" class="form-control w-25" placeholder="Mins"
-                                                title="Exercise duration">
-                                        </div>
-                                    </div>
-                                    <button type="button" class="btn-primary col-span-2" title="Save Health Log"><i
-                                            class="fas fa-save"></i> Save Health Log</button>
-                                </form>
-                            </div>
+                    <div class="card prompts-card mb-3">
+                        <h3><i class="fas fa-pen-fancy"></i> Suggested Prompts</h3>
+                        <ul class="prompts-list" id="journal-prompts-list">
+                            <!-- Populated by JS -->
+                        </ul>
+                    </div>
 
-                            <div class="card mt-4">
-                                <h3>Trends</h3>
-                                <div class="chart-wrapper"><canvas id="healthTrendChart" height="200"></canvas></div>
-                            </div>
-                        </div>
+                    <div class="card mood-chart-card">
+                        <h3>Mood Trend</h3>
+                        <div class="chart-wrapper"><canvas id="moodChart" height="200"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                        <div class="dashboard-side-col">
-                            <div class="card score-card">
-                                <h3>Health Score</h3>
-                                <div class="score-ring-container">
-                                    <canvas id="healthScoreChart" width="160" height="160"></canvas>
-                                    <div class="score-center-val"><span class="score-number"
-                                            id="health-score-text">0</span></div>
-                                </div>
-                            </div>
-                            <div class="card ai-insights-card mt-3 highlight-border text-center">
-                                <i class="fas fa-brain fa-3x text-purple mb-2"></i>
-                                <h4>AI Insight</h4>
-                                <p class="fs-sm" id="health-ai-insight">Log your metrics to see AI recommendations.</p>
-                            </div>
-                        </div>
+        <!-- 7. FINANCE VIEW -->
+        <div id="financeView" class="view">
+            <header class="view-header flex-between">
+                <h1>Finance</h1>
+                <div class="header-actions">
+                    <button class="btn-secondary" onclick="window.financeHandler.aiParse()" title="AI Parse"><i
+                            class="fas fa-magic"></i> AI
+                        Parse</button>
+                    <button class="btn-primary" onclick="window.financeHandler.showAddTransactionModal()"
+                        title="Transaction"><i class="fas fa-plus"></i>
+                        Transaction</button>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon b-green"><i class="fas fa-arrow-down"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-label">Income</span>
+                        <span class="stat-val" id="finance-income">$0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon b-red"><i class="fas fa-arrow-up"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-label">Expenses</span>
+                        <span class="stat-val" id="finance-expenses">$0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon b-blue"><i class="fas fa-piggy-bank"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-label">Savings</span>
+                        <span class="stat-val" id="finance-savings">$0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon b-purple"><i class="fas fa-percent"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-label">Savings Rate</span>
+                        <span class="stat-val" id="finance-savings-rate">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-rows mt-4">
+                <div class="card module-card flex-2">
+                    <h3>Recent Transactions</h3>
+                    <div class="transaction-list" id="finance-transaction-list">
+                        <p class="text-muted p-3">No recent transactions.</p>
                     </div>
                 </div>
 
-                <!-- 9. DEVPARTNER VIEW -->
-                <div id="devView" class="view flex-column h-100">
-                    <header class="view-header">
-                        <h1><i class="fas fa-laptop-code text-purple"></i> DevPartner</h1>
-                        <div class="dev-tabs">
-                            <button class="dev-tab active" data-tab="devChat" title="Chat with DevPartner">Chat</button>
-                            <button class="dev-tab" data-tab="devReview"
-                                title="Code review with DevPartner">Review</button>
-                            <button class="dev-tab" data-tab="devDebug" title="Debug with DevPartner">Debug</button>
-                            <button class="dev-tab" data-tab="devDSA" title="DSA practice with DevPartner">DSA</button>
-                            <button class="dev-tab" data-tab="devSnippets"
-                                title="Code snippets with DevPartner">Snippets</button>
-                            <button class="dev-tab" data-tab="devStats" title="DevPartner stats">Stats</button>
-                        </div>
-                    </header>
+                <div class="card module-card flex-1">
+                    <h3>Budget Summary</h3>
+                    <div id="finance-budget-bars">
+                        <p class="text-muted p-3">Set up a budget to track spending.</p>
+                    </div>
+                    <div class="chart-wrapper mt-3"><canvas id="finance-category-chart" height="200"></canvas></div>
+                </div>
+            </div>
+        </div>
 
-                    <div class="dev-content flex-1 overflow-hidden position-relative">
+        <!-- 8. HEALTH VIEW -->
+        <div id="healthView" class="view">
+            <header class="view-header">
+                <h1>Health & Wellbeing</h1>
+            </header>
 
-                        <!-- SESSION FLOATING WIDGET -->
-                        <div class="dev-session-widget">
-                            <div class="ds-time" id="dsTimeStr">00:00:00</div>
-                            <div class="ds-controls">
-                                <button class="btn-icon text-green" title="Start session"><i
-                                        class="fas fa-play"></i></button>
-                                <button class="btn-icon" title="Pause session"><i class="fas fa-pause"></i></button>
-                                <button class="btn-icon text-red" title="Stop session"><i
-                                        class="fas fa-stop"></i></button>
+            <div class="dashboard-grid grid-3-col">
+                <div class="col-span-2">
+                    <div class="card mb-4">
+                        <h3>Today's Log</h3>
+                        <div class="health-log-form grid-2-col gap-4 mt-3">
+                            <div class="form-group">
+                                <label>Sleep Hours</label>
+                                <div class="input-with-icon">
+                                    <i class="fas fa-bed"></i>
+                                    <input type="number" id="health-sleep" step="0.5" class="form-control"
+                                        placeholder="e.g. 7.5">
+                                </div>
                             </div>
-                            <div class="ds-meta"><span class="badge">Project: JEXI</span></div>
-                        </div>
+                            <div class="form-group">
+                                <label>Water (Liters)</label>
+                                <div class="input-with-icon">
+                                    <i class="fas fa-tint"></i>
+                                    <input type="number" id="health-water" step="0.1" class="form-control"
+                                        placeholder="e.g. 2.5">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Exercise (Mins)</label>
+                                <div class="input-with-icon">
+                                    <i class="fas fa-running"></i>
+                                    <input type="number" id="health-exercise" class="form-control"
+                                        placeholder="e.g. 45">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Meals Logged</label>
+                                <div class="input-with-icon">
+                                    <i class="fas fa-utensils"></i>
+                                    <input type="number" id="health-meals" class="form-control" placeholder="e.g. 3">
+                                </div>
+                            </div>
 
-                        <!-- DEV CHAT TAB -->
-                        <div class="dev-tab-pane active" id="tab-devChat">
-                            <div class="dev-layout">
-                                <!-- left: modes & context -->
-                                <div class="dev-sidebar">
-                                    <h3>Modes</h3>
-                                    <div class="dev-modes-grid">
-                                        <button class="mode-btn active" title="Teacher mode"><i
-                                                class="fas fa-chalkboard-teacher"></i> Teacher</button>
-                                        <button class="mode-btn" title="Pair programming mode"><i
-                                                class="fas fa-users"></i> Pair Prog</button>
-                                        <button class="mode-btn" title="Reviewer mode"><i class="fas fa-search"></i>
-                                            Reviewer</button>
-                                        <button class="mode-btn" title="Debugger mode"><i class="fas fa-bug"></i>
-                                            Debugger</button>
-                                        <button class="mode-btn" title="Speed mode"><i class="fas fa-rocket"></i>
-                                            Speed</button>
-                                        <button class="mode-btn" title="Challenge mode"><i class="fas fa-dumbbell"></i>
-                                            Challenge</button>
-                                    </div>
-                                    <h3 class="mt-4">Context</h3>
-                                    <textarea class="form-control context-area"
-                                        placeholder="Paste relevant code state here..." title="Context area"></textarea>
-                                </div>
-                                <!-- right: chat -->
-                                <div class="dev-chat-area">
-                                    <div class="chat-messages flex-1">
-                                        <div class="message-wrapper msg-ai">
-                                            <div class="msg-avatar"><i class="fas fa-laptop-code"></i></div>
-                                            <div class="msg-content">
-                                                Hello! I'm your DevPartner (Teacher Mode). What concept are we tackling
-                                                today?
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="chat-input-wrapper mb-0">
-                                        <textarea placeholder="Ask dev questions..." title="Dev chat input"></textarea>
-                                        <button class="btn-send" title="Send dev message"><i
-                                                class="fas fa-paper-plane"></i></button>
-                                    </div>
-                                </div>
-                            </div>
+                            <button class="btn-primary col-span-2" onclick="window.healthHandler.saveLog()"><i
+                                    class="fas fa-save"></i> Save Daily Log</button>
                         </div>
+                    </div>
 
-                        <!-- OTHER TABS PLACEHOLDERS (Review, Debug, DSA, Snippets, Stats) -->
-                        <div class="dev-tab-pane" id="tab-devReview">
-                            <div class="card m-4">
-                                <h2>Code Reviewer</h2>
-                                <div class="form-group mt-3">
-                                    <label>Paste Code for Review</label>
-                                    <textarea class="form-control code-font bg-dark-code" rows="15"
-                                        placeholder="def hello_world(): ..." title="Code for review"></textarea>
-                                </div>
-                                <button class="btn-primary" title="Evaluate Code"><i class="fas fa-search"></i> Evaluate
-                                    Code</button>
-                            </div>
-                        </div>
-
-                        <div class="dev-tab-pane" id="tab-devDebug">
-                            <div class="card m-4">
-                                <h2>Bug Squasher</h2>
-                                <div class="grid-2-col gap-3 mt-3">
-                                    <div class="form-group">
-                                        <label>Broken Code</label>
-                                        <textarea class="form-control code-font bg-dark-code" rows="10"
-                                            title="Code for review"></textarea>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Error Message / Stack Trace</label>
-                                        <textarea class="form-control code-font text-red" rows="10"
-                                            title="Error message or stack trace"></textarea>
-                                    </div>
-                                </div>
-                                <button class="btn-primary mt-3 w-100" title="Find the fix"><i class="fas fa-bug"></i>
-                                    Find the fix</button>
-                            </div>
-                        </div>
-
-                        <div class="dev-tab-pane scrollable-tab p-4" id="tab-devDSA">
-                            <div class="dashboard-grid">
-                                <div class="card">
-                                    <h3><span class="badge badge-medium">Medium</span> Problem: Two Sum</h3>
-                                    <p class="mt-2">Given an array of integers nums and an integer target, return
-                                        indices of the two numbers such that they add up to target.</p>
-                                    <div class="bg-dark p-3 rounded mt-2">Example: nums = [2,7,11,15], target = 9 ->
-                                        Output: [0, 1]</div>
-                                    <button class="btn-secondary mt-3" title="Show Hint 1">Show Hint 1</button>
-                                </div>
-                                <div class="card">
-                                    <h3>Your Solution</h3>
-                                    <textarea class="form-control code-font bg-dark-code mt-2" rows="10"
-                                        title="Your solution"></textarea>
-                                    <button class="btn-primary mt-3" title="Evaluate Complexity & Correctness"><i
-                                            class="fas fa-play"></i> Evaluate Complexity &
-                                        Correctness</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="dev-tab-pane p-4" id="tab-devSnippets">
-                            <div class="filter-bar">
-                                <div class="search-box w-50">
-                                    <i class="fas fa-search"></i><input type="text" placeholder="Search snippets..."
-                                        title="Search snippets">
-                                </div>
-                                <button class="btn-primary ml-auto" title="Add snippet"><i class="fas fa-plus"></i> Add
-                                    Snippet</button>
-                            </div>
-                            <div class="snippets-grid mt-4">
-                                <div class="card snippet-card">
-                                    <div class="snippet-header">
-                                        <h4>FastAPI CORS Config</h4>
-                                        <span class="badge badge-outline">Python</span>
-                                    </div>
-                                    <pre><code>app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    ...
-)</code></pre>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="dev-tab-pane scrollable-tab p-4" id="tab-devStats">
-                            <div class="stats-grid mb-4">
-                                <div class="stat-card">
-                                    <div class="stat-icon b-blue"><i class="fas fa-clock"></i></div>
-                                    <div class="stat-details"><span class="stat-label">Hours Coded</span><span
-                                            class="stat-val">124</span></div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-icon b-green"><i class="fas fa-fire"></i></div>
-                                    <div class="stat-details"><span class="stat-label">Longest Streak</span><span
-                                            class="stat-val">12 Days</span></div>
-                                </div>
-                                <div class="stat-card">
-                                    <div class="stat-icon b-purple"><i class="fas fa-bug"></i></div>
-                                    <div class="stat-details"><span class="stat-label">Bugs Fixed</span><span
-                                            class="stat-val">42</span></div>
-                                </div>
-                            </div>
-                            <div class="card mb-4">
-                                <h3>Coding Heatmap</h3>
-                                <!-- Placeholder for D3/Chart/Grid heatmap -->
-                                <div class="heatmap-container placeholder-rect"></div>
-                            </div>
-                        </div>
+                    <div class="card">
+                        <h3>Health Trends</h3>
+                        <div class="chart-wrapper"><canvas id="health-trends-chart" height="250"></canvas></div>
                     </div>
                 </div>
 
-                <!-- 10. PROJECTS VIEW -->
-                <div id="projectsView" class="view">
-                    <header class="view-header flex-between">
-                        <h1>Projects</h1>
-                        <div class="header-actions">
-                            <button class="btn-secondary" title="AI Kickstart"><i class="fas fa-magic"></i> AI
-                                Kickstart</button>
-                            <button class="btn-primary" title="New Project"><i class="fas fa-plus"></i> New
-                                Project</button>
+                <div class="health-sidebar">
+                    <div class="card mb-3 text-center">
+                        <h3>Life Score</h3>
+                        <div class="gauge-container mb-2">
+                            <canvas id="health-gauge-chart" height="150"></canvas>
+                            <div class="gauge-value" id="health-score-text">0</div>
                         </div>
-                    </header>
-
-                    <div class="projects-list mb-4">
-                        <div class="card project-card pointer">
-                            <div class="project-header">
-                                <h3>JEXI Life OS</h3>
-                                <span class="badge bg-blue text-white">Active</span>
-                            </div>
-                            <p class="text-muted">Personal AI dashboard integrating goals, habits, and coding tools.</p>
-                            <div class="project-meta mt-3">
-                                <span class="badge badge-outline">Vue.js</span>
-                                <span class="badge badge-outline">FastAPI</span>
-                                <span class="badge badge-outline">SQLite</span>
-                            </div>
-                            <div class="goal-progress-wrap mt-3">
-                                <div class="progress-bar-bg">
-                                    <div class="progress-bar-fill bg-blue width-75-percent"></div>
-                                </div>
-                            </div>
-                        </div>
+                        <p class="text-xs text-muted">A composite score of your wellbeing.</p>
                     </div>
 
-                    <!-- Kanban view placeholder (activated on project click) -->
-                    <div class="kanban-board-container mt-4 hidden">
-                        <div class="kanban-header flex-between mb-3">
-                            <h2>Board: JEXI Life OS</h2>
-                            <button class="btn-secondary btn-sm" title="Back to Projects"><i
-                                    class="fas fa-arrow-left"></i> Back to
-                                Projects</button>
-                        </div>
-                        <div class="kanban-board" id="mainKanbanBoard">
-                            <div class="kanban-col" data-status="todo">
-                                <div class="kb-col-header">To Do <span class="count">0</span></div>
-                                <div class="kb-list"></div>
-                            </div>
-                            <div class="kanban-col" data-status="doing">
-                                <div class="kb-col-header">Doing <span class="count">0</span></div>
-                                <div class="kb-list"></div>
-                            </div>
-                            <div class="kanban-col" data-status="review">
-                                <div class="kb-col-header">Review <span class="count">0</span></div>
-                                <div class="kb-list"></div>
-                            </div>
-                            <div class="kanban-col" data-status="done">
-                                <div class="kb-col-header">Done <span class="count">0</span></div>
-                                <div class="kb-list"></div>
-                            </div>
-                        </div>
+                    <div class="card" id="health-ai-panel">
+                        <h3>AI Insights</h3>
+                        <p class="text-xs opacity-70" id="health-ai-insight">Complete logs to get personalized health
+                            advice.</p>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- 11. LEARNING VIEW -->
-                <div id="learningView" class="view">
-                    <header class="view-header">
-                        <h1>Learning Center</h1>
-                    </header>
-                    <div class="tabs-nav">
-                        <button class="tab-btn active" title="Courses">Courses</button>
-                        <button class="tab-btn" title="Notes">Notes</button>
-                        <button class="tab-btn" title="Spaced Review">Spaced Review</button>
-                        <button class="tab-btn" title="AI Quiz">AI Quiz</button>
+        <!-- 9. DEVPARTNER VIEW -->
+        <div id="devView" class="view flex-column h-100">
+            <header class="view-header">
+                <h1><i class="fas fa-laptop-code text-purple"></i> DevPartner</h1>
+                <div class="dev-tabs">
+                    <button class="dev-tab active" data-tab="devChat" title="Chat with DevPartner">Chat</button>
+                    <button class="dev-tab" data-tab="devReview" title="Code review with DevPartner">Review</button>
+                    <button class="dev-tab" data-tab="devDebug" title="Debug with DevPartner">Debug</button>
+                    <button class="dev-tab" data-tab="devDSA" title="DSA practice with DevPartner">DSA</button>
+                    <button class="dev-tab" data-tab="devSnippets"
+                        title="Code snippets with DevPartner">Snippets</button>
+                    <button class="dev-tab" data-tab="devStats" title="DevPartner stats">Stats</button>
+                </div>
+            </header>
+
+            <div class="dev-content flex-1 overflow-hidden position-relative">
+
+                <!-- SESSION FLOATING WIDGET -->
+                <div class="dev-session-widget">
+                    <div class="ds-time" id="dsTimeStr">00:00:00</div>
+                    <div class="ds-controls">
+                        <button class="btn-icon text-green" title="Start session"><i class="fas fa-play"></i></button>
+                        <button class="btn-icon" title="Pause session"><i class="fas fa-pause"></i></button>
+                        <button class="btn-icon text-red" title="Stop session"><i class="fas fa-stop"></i></button>
                     </div>
-
-                    <div class="dashboard-rows mt-4">
-                        <div class="card flex-1">
-                            <div class="card-header">
-                                <h3>Active Courses</h3>
-                                <button class="btn-icon-sm" title="Add course"><i class="fas fa-plus"></i></button>
-                            </div>
-                            <div class="course-list mt-3" id="activeCoursesList">
-                                <p class="text-muted p-3">No active courses.</p>
-                            </div>
-                        </div>
-
-                        <div class="card bg-gradient-brand flex-1 text-white">
-                            <h3><i class="fas fa-brain"></i> Spaced Repetition Due</h3>
-                            <p class="mt-2" id="spacedRepetitionText">No notes due for review today. Great job keeping
-                                up!</p>
-                            <button class="btn bg-white text-dark mt-3 fw-bold" title="Start review session"><i
-                                    class="fas fa-play"></i> Start Review
-                                Session</button>
-                        </div>
-                    </div>
+                    <div class="ds-meta"><span class="badge">Project: JEXI</span></div>
                 </div>
 
-                <!-- 12. ANALYTICS VIEW -->
-                <div id="analyticsView" class="view">
-                    <header class="view-header">
-                        <h1>Analytics & Insights</h1>
-                    </header>
-
-                    <div class="dashboard-grid">
-                        <div class="card col-span-2">
-                            <h3>Life Score Trend (30 Days)</h3>
-                            <div class="chart-wrapper"><canvas id="analyticsTrendChart" height="250"></canvas></div>
-                        </div>
-
-                        <div class="card">
-                            <h3><i class="fas fa-robot text-blue"></i> AI Correlations</h3>
-                            <ul class="correlation-list" id="aiCorrelationsList">
-                                <li class="text-muted">Analyzing your data for correlations...</li>
-                            </ul>
-                        </div>
-
-                        <div class="card">
-                            <h3>Provider API Usage</h3>
-                            <div class="chart-wrapper"><canvas id="apiUsageChart" height="200"></canvas></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 13. PLANNER VIEW -->
-                <div id="plannerView" class="view">
-                    <header class="view-header flex-between">
-                        <h1>Daily Planner</h1>
-                        <button class="btn-secondary" title="AI Auto-Schedule"><i class="fas fa-magic"></i> AI
-                            Auto-Schedule</button>
-                    </header>
-
-                    <div class="planner-layout">
-                        <!-- Timeline Left -->
-                        <div class="card planner-timeline" id="dailyPlannerTimeline">
-                            <p class="text-muted p-4">Your daily schedule will appear here.</p>
-                        </div>
-
-                        <!-- Focus right block -->
-                        <div class="planner-focus">
-                            <div class="card text-center mb-4 highlight-border">
-                                <h3>Focus Timer</h3>
-                                <div class="focus-timer-display my-3">
-                                    <span>25:00</span>
-                                </div>
-                                <p class="text-muted mb-3">Current: Finish API Endpoints</p>
-                                <div class="focus-controls">
-                                    <button class="btn-primary" title="Start"><i class="fas fa-play"></i> Start</button>
-                                    <button class="btn-secondary" title="Skip"><i class="fas fa-redo"></i> Skip</button>
-                                </div>
+                <!-- DEV CHAT TAB -->
+                <div class="dev-tab-pane active" id="tab-devChat">
+                    <div class="dev-layout">
+                        <!-- left: modes & context -->
+                        <div class="dev-sidebar">
+                            <h3>Modes</h3>
+                            <div class="dev-modes-grid">
+                                <button class="mode-btn active" title="Teacher mode"><i
+                                        class="fas fa-chalkboard-teacher"></i> Teacher</button>
+                                <button class="mode-btn" title="Pair programming mode"><i class="fas fa-users"></i> Pair
+                                    Prog</button>
+                                <button class="mode-btn" title="Reviewer mode"><i class="fas fa-search"></i>
+                                    Reviewer</button>
+                                <button class="mode-btn" title="Debugger mode"><i class="fas fa-bug"></i>
+                                    Debugger</button>
+                                <button class="mode-btn" title="Speed mode"><i class="fas fa-rocket"></i>
+                                    Speed</button>
+                                <button class="mode-btn" title="Challenge mode"><i class="fas fa-dumbbell"></i>
+                                    Challenge</button>
                             </div>
-
-                            <div class="card ai-evening-review">
-                                <h3><i class="fas fa-moon text-purple"></i> Evening Review</h3>
-                                <p class="text-muted">Unlock at 8:00 PM for daily reflection, score calculation, and
-                                    tomorrow's prep.</p>
-                                <button class="btn-secondary mt-2 w-100" disabled title="Start Review">Start
-                                    Review</button>
-                            </div>
+                            <h3 class="mt-4">Context</h3>
+                            <textarea class="form-control context-area" placeholder="Paste relevant code state here..."
+                                title="Context area"></textarea>
                         </div>
-                    </div>
-                </div>
-
-                <!-- 14. COMMUNITY VIEW -->
-                <div id="communityView" class="view">
-                    <header class="view-header">
-                        <h1>Community &amp; Leaderboard</h1>
-                    </header>
-
-                    <div class="dashboard-grid">
-                        <div class="dashboard-main-col">
-                            <div class="card">
-                                <h3><i class="fas fa-stream"></i> Activity Feed</h3>
-                                <div class="feed-list mt-3" id="communityActivityFeed">
-                                    <p class="text-muted p-3 text-center">No community activity yet.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="dashboard-side-col">
-                            <div class="card">
-                                <h3>🏆 Leaderboard</h3>
-                                <div class="tabs-nav mt-3 mb-2 font-size-08rem border-bottom-none gap-0">
-                                    <button class="tab-btn active px-1" title="Life Score">Life Score</button>
-                                    <button class="tab-btn px-1" title="Dev Hours">Dev Hours</button>
-                                    <button class="tab-btn px-1" title="Streaks">Streaks</button>
-                                </div>
-                                <div class="leaderboard-list" id="communityLeaderboard">
-                                    <p class="text-muted p-3 text-center">Leaderboard is being calculated...</p>
-                                </div>
-                            </div>
-                            <div class="card mt-4">
-                                <h3>💡 App Suggestion Box</h3>
-                                <p class="text-muted fs-sm my-2">Have an idea for JEXI? Send it directly to the Admin
-                                    AI!</p>
-                                <textarea class="form-control mb-3" id="suggestionTextInput" rows="3"
-                                    placeholder="I think we should add a dark mode..."></textarea>
-                                <button class="btn-primary w-100" id="submitSuggestionBtn">
-                                    <i class="fas fa-paper-plane"></i> Send Suggestion
-                                </button>
-                                <div id="suggestionMessage" class="mt-2 fs-sm text-center" style="display:none;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 14.5 FRIENDS CHAT VIEW -->
-                <div id="friendsView" class="view">
-                    <header class="view-header flex-between">
-                        <h1>Friends Chat</h1>
-                        <button class="btn-primary" id="addFriendBtn" title="Add Friend"><i
-                                class="fas fa-user-plus"></i> Add
-                            Friend</button>
-                    </header>
-
-                    <div class="friends-layout">
-                        <!-- Left Sidebar: Friends List -->
-                        <div class="card friends-sidebar">
-                            <div class="search-box mb-3">
-                                <i class="fas fa-search"></i>
-                                <input type="text" placeholder="Search friends..." id="friendSearchInput"
-                                    title="Search friends">
-                            </div>
-                            <div class="friends-list" id="friendsSidebarList">
-                                <p class="text-muted p-3 text-center">No friends added yet.</p>
-                            </div>
-                        </div>
-
-                        <!-- Right Area: Chat Content -->
-                        <div class="card friends-chat-area">
-                            <div class="chat-area-header" id="activeFriendHeader">
-                                <div class="flex-align">
-                                    <img src="https://ui-avatars.com/api/?name=Alex&background=random" alt=""
-                                        class="avatar-sm" id="activeFriendAvatar">
-                                    <div>
-                                        <h4 id="activeFriendName">Alex</h4>
-                                        <span class="text-muted fs-xs">Away 5m ago</span>
+                        <!-- right: chat -->
+                        <div class="dev-chat-area">
+                            <div class="chat-messages flex-1">
+                                <div class="message-wrapper msg-ai">
+                                    <div class="msg-avatar"><i class="fas fa-laptop-code"></i></div>
+                                    <div class="msg-content">
+                                        Hello! I'm your DevPartner (Teacher Mode). What concept are we tackling
+                                        today?
                                     </div>
                                 </div>
-                                <div class="chat-actions">
-                                    <button class="btn-icon-sm" title="Call"><i class="fas fa-phone"></i></button>
-                                    <button class="btn-icon-sm" title="Video Call"><i class="fas fa-video"></i></button>
-                                    <button class="btn-icon-sm" title="Info"><i class="fas fa-info-circle"></i></button>
-                                </div>
                             </div>
-
-                            <div class="friends-messages-box" id="friendsMessagesBox">
-                                <div class="empty-state py-5">
-                                    <i class="fas fa-comments fa-3x text-muted mb-3"></i>
-                                    <p class="text-muted">Select a friend to start chatting.</p>
-                                </div>
-                            </div>
-
-                            <div class="friends-chat-input-row">
-                                <input type="file" id="friendChatFile" class="hidden"
-                                    accept="image/*,application/pdf,.doc,.docx,.txt">
-                                <button class="btn-icon" id="friendAttachBtn" title="Attach File"><i
-                                        class="fas fa-paperclip"></i></button>
-                                <div class="friends-input-wrapper">
-                                    <input type="text" placeholder="Type a message..." id="friendChatInput"
-                                        title="Chat input">
-                                    <button class="btn-icon text-brand" title="Send Emoji"><i
-                                            class="fas fa-smile"></i></button>
-                                </div>
-                                <button class="btn-send-friend" id="friendSendBtn" title="Send Message"><i
+                            <div class="chat-input-wrapper mb-0">
+                                <textarea placeholder="Ask dev questions..." title="Dev chat input"></textarea>
+                                <button class="btn-send" title="Send dev message"><i
                                         class="fas fa-paper-plane"></i></button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 15. SETTINGS VIEW -->
-                <div id="settingsView" class="view">
-                    <header class="view-header">
-                        <h1>Settings</h1>
-                    </header>
-
-                    <div class="settings-grid">
-                        <div class="card col-span-2">
-                            <h3>Personalization</h3>
-                            <div class="form-group row-align mt-3">
-                                <label>Assistant Name</label>
-                                <input type="text" class="form-control max-width-250" value="JEXI"
-                                    title="Assistant name">
-                            </div>
-                            <div class="form-group row-align mt-3">
-                                <label>Theme Preference</label>
-                                <div class="toggle-switch">
-                                    <span>Dark</span>
-                                    <label class="switch">
-                                        <input type="checkbox" id="themeToggleBtn" title="Toggle theme">
-                                        <span class="slider round"></span>
-                                    </label>
-                                    <span>Light</span>
-                                </div>
-                            </div>
+                <!-- OTHER TABS PLACEHOLDERS (Review, Debug, DSA, Snippets, Stats) -->
+                <div class="dev-tab-pane" id="tab-devReview">
+                    <div class="card m-4">
+                        <h2>Code Reviewer</h2>
+                        <div class="form-group mt-3">
+                            <label>Paste Code for Review</label>
+                            <textarea class="form-control code-font bg-dark-code" rows="15"
+                                placeholder="def hello_world(): ..." title="Code for review"></textarea>
                         </div>
-
-                        <div class="card col-span-2">
-                            <h3>API Providers & Routes</h3>
-                            <p class="text-muted fs-sm mb-3">Manage which provider handles which task by default. Ensure
-                                keys are set in backend .env.</p>
-
-                            <table class="settings-table w-100">
-                                <tr>
-                                    <td>General Chat</td>
-                                    <td>
-                                        <select class="form-control" title="Select chat provider">
-                                            <option>Groq (llama-3.3)</option>
-                                            <option>Gemini 1.5 Pro</option>
-                                        </select>
-                                    </td>
-                                    <td><span class="status-dot green"></span> Active</td>
-                                </tr>
-                                <tr>
-                                    <td>DevPartner (Coding)</td>
-                                    <td>
-                                        <select class="form-control" title="Select chat provider">
-                                            <option>Cohere (Command-R+)</option>
-                                            <option>Gemini 1.5 Pro</option>
-                                        </select>
-                                    </td>
-                                    <td><span class="status-dot green"></span> Active</td>
-                                </tr>
-                                <tr>
-                                    <td>Data Parsing & NLP</td>
-                                    <td>
-                                        <select class="form-control" title="Select chat provider">
-                                            <option>Groq (llama-3.1-8b)</option>
-                                        </select>
-                                    </td>
-                                    <td><span class="status-dot green"></span> Active</td>
-                                </tr>
-                            </table>
-                        </div>
-
-                        <div class="card col-span-2 mt-4">
-                            <h3><i class="fas fa-key"></i> Shared API Keys</h3>
-                            <p class="text-muted fs-sm mb-3">Your friends can contribute their own API keys to increase
-                                the group's rate limits.
-                                Keys are encrypted and stored securely.</p>
-
-                            <div class="grid-2-col mt-4">
-                                <div class="form-group">
-                                    <label>Provider</label>
-                                    <select class="form-control" id="friendKeyProvider" title="Select API provider">
-                                        <option value="groq">Groq</option>
-                                        <option value="openrouter">OpenRouter</option>
-                                        <option value="gemini">Google Gemini</option>
-                                        <option value="hf">HuggingFace</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>API Key</label>
-                                    <div class="input-with-icon">
-                                        <i class="fas fa-lock"></i>
-                                        <input type="text" class="form-control" id="friendKeyInput" autocomplete="off"
-                                            placeholder="sk-...">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="text-center mt-3">
-                                <button class="btn-primary w-100" id="submitFriendKeyBtn">
-                                    <i class="fas fa-plus-circle"></i> Add Key to Pool
-                                </button>
-                            </div>
-
-                            <div class="mt-4 border-top-1px padding-top-1rem">
-                                <h4>Pool Status</h4>
-                                <div class="flex-between fs-sm text-muted mt-2">
-                                    <span>Active Keys in Pool:</span>
-                                    <span class="text-green fw-bold" id="shared-pool-status">0 (Groq, OpenRouter)</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card col-span-2 mt-4">
-                            <h3><i class="fas fa-shield-alt"></i> Security & Active Sessions</h3>
-                            <p class="text-muted fs-sm mb-3">Manage your active logins across different devices and
-                                browsers.</p>
-
-                            <div class="session-management-area">
-                                <div id="activeSessionsList" class="active-sessions-list">
-                                    <div class="text-center p-3 opacity-50">Loading active sessions...</div>
-                                </div>
-                                <div class="text-center mt-4 border-top-1px pt-3">
-                                    <button id="logoutAllBtn" class="btn-secondary btn-sm text-red">
-                                        <i class="fas fa-user-slash"></i> Log out of all other devices
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card col-span-2 mt-4 text-center">
-                            <button id="logoutBtn" class="btn btn-outline text-red" title="Logout"><i
-                                    class="fas fa-sign-out-alt"></i>
-                                Logout</button>
-                            <p class="mt-3 text-muted fs-sm">JEXI Personal AI Life OS v1.0.0</p>
-                        </div>
+                        <button class="btn-primary" title="Evaluate Code"><i class="fas fa-search"></i> Evaluate
+                            Code</button>
                     </div>
                 </div>
 
-                <!-- 16. ADMIN VIEW -->
-                <div id="adminView" class="view">
-                    <header class="view-header">
-                        <h1>User Management (Admin)</h1>
-                    </header>
+                <div class="dev-tab-pane" id="tab-devDebug">
+                    <div class="card m-4">
+                        <h2>Bug Squasher</h2>
+                        <div class="grid-2-col gap-3 mt-3">
+                            <div class="form-group">
+                                <label>Broken Code</label>
+                                <textarea class="form-control code-font bg-dark-code" rows="10"
+                                    title="Code for review"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Error Message / Stack Trace</label>
+                                <textarea class="form-control code-font text-red" rows="10"
+                                    title="Error message or stack trace"></textarea>
+                            </div>
+                        </div>
+                        <button class="btn-primary mt-3 w-100" title="Find the fix"><i class="fas fa-bug"></i>
+                            Find the fix</button>
+                    </div>
+                </div>
 
+                <div class="dev-tab-pane scrollable-tab p-4" id="tab-devDSA">
                     <div class="dashboard-grid">
-                        <div class="card col-span-2">
-                            <h3>Add New Friend/User</h3>
-                            <p class="text-muted fs-sm mb-4">Create an account for a friend. They will be automatically
-                                added to your friends list.</p>
-
-                            <form id="adminAddUserForm" class="grid-2-col">
-                                <div class="form-group">
-                                    <label>Username</label>
-                                    <input type="text" id="adminNewUsername" class="form-control"
-                                        placeholder="Friend's username" autocomplete="new-password" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Initial Password</label>
-                                    <input type="text" id="adminNewPassword" class="form-control" autocomplete="off"
-                                        placeholder="Secret password" required>
-                                </div>
-                                <div class="col-span-2 text-right mt-3">
-                                    <button type="submit" class="btn-primary">
-                                        <i class="fas fa-plus-circle"></i> Create & Add Friend
-                                    </button>
-                                </div>
-                            </form>
+                        <div class="card">
+                            <h3><span class="badge badge-medium">Medium</span> Problem: Two Sum</h3>
+                            <p class="mt-2">Given an array of integers nums and an integer target, return
+                                indices of the two numbers such that they add up to target.</p>
+                            <div class="bg-dark p-3 rounded mt-2">Example: nums = [2,7,11,15], target = 9 ->
+                                Output: [0, 1]</div>
+                            <button class="btn-secondary mt-3" title="Show Hint 1">Show Hint 1</button>
                         </div>
-
-                        <div class="card col-span-2">
-                            <h3>Manage Users</h3>
-                            <table class="settings-table w-100" id="adminUserTable">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Username</th>
-                                        <th>Role</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="adminUserList">
-                                    <!-- Populated via JS -->
-                                </tbody>
-                            </table>
+                        <div class="card">
+                            <h3>Your Solution</h3>
+                            <textarea class="form-control code-font bg-dark-code mt-2" rows="10"
+                                title="Your solution"></textarea>
+                            <button class="btn-primary mt-3" title="Evaluate Complexity & Correctness"><i
+                                    class="fas fa-play"></i> Evaluate Complexity &
+                                Correctness</button>
                         </div>
                     </div>
                 </div>
 
-            </main>
+                <div class="dev-tab-pane p-4" id="tab-devSnippets">
+                    <div class="filter-bar">
+                        <div class="search-box w-50">
+                            <i class="fas fa-search"></i><input type="text" placeholder="Search snippets..."
+                                title="Search snippets">
+                        </div>
+                        <button class="btn-primary ml-auto" title="Add snippet"><i class="fas fa-plus"></i> Add
+                            Snippet</button>
+                    </div>
+                    <div class="snippets-grid mt-4">
+                        <div class="card snippet-card">
+                            <div class="snippet-header">
+                                <h4>FastAPI CORS Config</h4>
+                                <span class="badge badge-outline">Python</span>
+                            </div>
+                            <pre><code>app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    ...
+)</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dev-tab-pane scrollable-tab p-4" id="tab-devStats">
+                    <div class="stats-grid mb-4">
+                        <div class="stat-card">
+                            <div class="stat-icon b-blue"><i class="fas fa-clock"></i></div>
+                            <div class="stat-details"><span class="stat-label">Hours Coded</span><span
+                                    class="stat-val">124</span></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon b-green"><i class="fas fa-fire"></i></div>
+                            <div class="stat-details"><span class="stat-label">Longest Streak</span><span
+                                    class="stat-val">12 Days</span></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon b-purple"><i class="fas fa-bug"></i></div>
+                            <div class="stat-details"><span class="stat-label">Bugs Fixed</span><span
+                                    class="stat-val">42</span></div>
+                        </div>
+                    </div>
+                    <div class="card mb-4">
+                        <h3>Coding Heatmap</h3>
+                        <!-- Placeholder for D3/Chart/Grid heatmap -->
+                        <div class="heatmap-container placeholder-rect"></div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- 10. PROJECTS VIEW -->
+        <div id="projectsView" class="view">
+            <header class="view-header flex-between">
+                <h1>Projects</h1>
+                <div class="header-actions">
+                    <button class="btn-secondary" title="AI Kickstart"><i class="fas fa-magic"></i> AI
+                        Kickstart</button>
+                    <button class="btn-primary" title="New Project"><i class="fas fa-plus"></i> New
+                        Project</button>
+                </div>
+            </header>
+
+            <div class="projects-list mb-4">
+                <div class="card project-card pointer">
+                    <div class="project-header">
+                        <h3>JEXI Life OS</h3>
+                        <span class="badge bg-blue text-white">Active</span>
+                    </div>
+                    <p class="text-muted">Personal AI dashboard integrating goals, habits, and coding tools.</p>
+                    <div class="project-meta mt-3">
+                        <span class="badge badge-outline">Vue.js</span>
+                        <span class="badge badge-outline">FastAPI</span>
+                        <span class="badge badge-outline">SQLite</span>
+                    </div>
+                    <div class="goal-progress-wrap mt-3">
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill bg-blue width-75-percent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kanban view placeholder (activated on project click) -->
+            <div class="kanban-board-container mt-4 hidden">
+                <div class="kanban-header flex-between mb-3">
+                    <h2>Board: JEXI Life OS</h2>
+                    <button class="btn-secondary btn-sm" title="Back to Projects"><i class="fas fa-arrow-left"></i> Back
+                        to
+                        Projects</button>
+                </div>
+                <div class="kanban-board" id="mainKanbanBoard">
+                    <div class="kanban-col" data-status="todo">
+                        <div class="kb-col-header">To Do <span class="count">0</span></div>
+                        <div class="kb-list"></div>
+                    </div>
+                    <div class="kanban-col" data-status="doing">
+                        <div class="kb-col-header">Doing <span class="count">0</span></div>
+                        <div class="kb-list"></div>
+                    </div>
+                    <div class="kanban-col" data-status="review">
+                        <div class="kb-col-header">Review <span class="count">0</span></div>
+                        <div class="kb-list"></div>
+                    </div>
+                    <div class="kanban-col" data-status="done">
+                        <div class="kb-col-header">Done <span class="count">0</span></div>
+                        <div class="kb-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 11. LEARNING VIEW -->
+        <div id="learningView" class="view">
+            <header class="view-header flex-between">
+                <div>
+                    <h1>Learning Hub</h1>
+                    <p class="text-muted">Master your knowledge with AI & Zettelkasten</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-secondary" onclick="window.learningHandler.generateQuiz()" title="AI Quiz"><i
+                            class="fas fa-brain"></i> AI Quiz</button>
+                    <button class="btn-primary" onclick="window.learningHandler.addNote()" title="Add Note"><i
+                            class="fas fa-plus"></i> New Note</button>
+                </div>
+            </header>
+
+            <div class="learning-tabs tabs-nav mb-4">
+                <button class="tab-btn learning-nav-tab active" data-target="notes"
+                    onclick="window.learningHandler.switchLearningTab('notes')" title="Notes">Notes</button>
+                <button class="tab-btn learning-nav-tab" data-target="courses"
+                    onclick="window.learningHandler.switchLearningTab('courses')" title="Courses">Courses</button>
+                <button class="tab-btn learning-nav-tab" data-target="books"
+                    onclick="window.learningHandler.switchLearningTab('books')" title="Books">Books</button>
+            </div>
+
+            <!-- Spaced Repetition Due (Pinned at top if any) -->
+            <div id="learning-review-card" class="mb-4">
+                <!-- Populated by JS -->
+            </div>
+
+            <div id="learning-tab-notes" class="learning-tab-pane">
+                <div class="card mb-4">
+                    <div class="form-group mb-0">
+                        <div class="input-wrapper">
+                            <i class="fas fa-pen-nib"></i>
+                            <textarea id="learning-note-input" class="form-control" rows="3"
+                                placeholder="Capture a thought, concept, or snippet... Use #tags to organize."
+                                title="Note input"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-bar mb-3">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search your knowledge graph..."
+                            onkeyup="window.learningHandler.searchNotes(event)" title="Search notes">
+                    </div>
+                </div>
+
+                <div id="learning-notes-list" class="notes-grid">
+                    <div class="text-center p-5 opacity-50">
+                        <i class="fas fa-book-open fa-3x mb-3"></i>
+                        <p>Your personal knowledge base is empty.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="learning-tab-courses" class="learning-tab-pane" style="display:none;">
+                <div id="learning-courses-list" class="dashboard-grid">
+                    <p class="text-muted p-3">No active courses.</p>
+                </div>
+            </div>
+
+            <div id="learning-tab-books" class="learning-tab-pane" style="display:none;">
+                <div id="learning-books-list" class="dashboard-grid">
+                    <p class="text-muted p-3">No books being tracked.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 11.5 QUIZ MODAL -->
+        <div id="learning-quiz-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3>AI Pedagogical Quiz</h3>
+                    <button class="btn-icon" onclick="window.learningHandler.closeModal()" title="Close"><i
+                            class="fas fa-times"></i></button>
+                </div>
+                <div id="learning-quiz-modal-body" class="modal-body">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="window.learningHandler.closeModal()">Finish Session</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 12. ANALYTICS VIEW -->
+        <div id="analyticsView" class="view">
+            <header class="view-header">
+                <div>
+                    <h1>Analytics & AI Insights</h1>
+                    <p class="text-muted">Macro-view of your life performance</p>
+                </div>
+                <button class="btn-secondary" onclick="window.analyticsHandler.generateWeeklyReview()"
+                    title="Weekly Review"><i class="fas fa-file-alt"></i> Weekly Deep Dive</button>
+            </header>
+
+            <div class="analytics-top-grid mb-4">
+                <div class="card score-hero-card">
+                    <div class="score-hero-content">
+                        <div class="score-hero-main">
+                            <div class="score-ring-lg">
+                                <canvas id="analytics-score-chart"></canvas>
+                                <div class="score-center">
+                                    <span id="analytics-score-text" class="score-num">0</span>
+                                    <span class="score-label">Life Score</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="analytics-breakdown-bars" class="score-breakdown">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card ai-correlation-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-wand-magic-sparkles text-purple"></i> AI Insights & Correlations</h3>
+                    </div>
+                    <div id="analytics-ai-panel" class="ai-insights-list mt-3">
+                        <p class="text-muted">Aggregating cross-module data...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="card col-span-2">
+                    <h3>Performance Trend (30 Days)</h3>
+                    <div class="chart-wrapper mt-3" style="height: 300px;">
+                        <canvas id="analytics-history-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>AI Logic Load</h3>
+                    <canvas id="apiUsageChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 13. PLANNER VIEW -->
+        <div id="plannerView" class="view">
+            <header class="view-header flex-between">
+                <h1>Daily Planner</h1>
+                <button class="btn-secondary" title="AI Auto-Schedule"><i class="fas fa-magic"></i> AI
+                    Auto-Schedule</button>
+            </header>
+
+            <div class="planner-layout">
+                <!-- Timeline Left -->
+                <div class="card planner-timeline" id="dailyPlannerTimeline">
+                    <p class="text-muted p-4">Your daily schedule will appear here.</p>
+                </div>
+
+                <!-- Focus right block -->
+                <div class="planner-focus">
+                    <div class="card text-center mb-4 highlight-border">
+                        <h3>Focus Timer</h3>
+                        <div class="focus-timer-display my-3">
+                            <span>25:00</span>
+                        </div>
+                        <p class="text-muted mb-3">Current: Finish API Endpoints</p>
+                        <div class="focus-controls">
+                            <button class="btn-primary" title="Start"><i class="fas fa-play"></i> Start</button>
+                            <button class="btn-secondary" title="Skip"><i class="fas fa-redo"></i> Skip</button>
+                        </div>
+                    </div>
+
+                    <div class="card ai-evening-review">
+                        <h3><i class="fas fa-moon text-purple"></i> Evening Review</h3>
+                        <p class="text-muted">Unlock at 8:00 PM for daily reflection, score calculation, and
+                            tomorrow's prep.</p>
+                        <button class="btn-secondary mt-2 w-100" disabled title="Start Review">Start
+                            Review</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 14. COMMUNITY VIEW -->
+        <div id="communityView" class="view">
+            <header class="view-header">
+                <h1>Community &amp; Leaderboard</h1>
+            </header>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-main-col">
+                    <div class="card">
+                        <h3><i class="fas fa-stream"></i> Activity Feed</h3>
+                        <div class="feed-list mt-3" id="communityActivityFeed">
+                            <p class="text-muted p-3 text-center">No community activity yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-side-col">
+                    <div class="card">
+                        <h3>🏆 Leaderboard</h3>
+                        <div class="tabs-nav mt-3 mb-2 font-size-08rem border-bottom-none gap-0">
+                            <button class="tab-btn active px-1" title="Life Score">Life Score</button>
+                            <button class="tab-btn px-1" title="Dev Hours">Dev Hours</button>
+                            <button class="tab-btn px-1" title="Streaks">Streaks</button>
+                        </div>
+                        <div class="leaderboard-list" id="communityLeaderboard">
+                            <p class="text-muted p-3 text-center">Leaderboard is being calculated...</p>
+                        </div>
+                    </div>
+                    <div class="card mt-4">
+                        <h3>💡 App Suggestion Box</h3>
+                        <p class="text-muted fs-sm my-2">Have an idea for JEXI? Send it directly to the Admin
+                            AI!</p>
+                        <textarea class="form-control mb-3" id="suggestionTextInput" rows="3"
+                            placeholder="I think we should add a dark mode..."></textarea>
+                        <button class="btn-primary w-100" id="submitSuggestionBtn">
+                            <i class="fas fa-paper-plane"></i> Send Suggestion
+                        </button>
+                        <div id="suggestionMessage" class="mt-2 fs-sm text-center" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 14.5 FRIENDS CHAT VIEW -->
+        <div id="friendsView" class="view">
+            <header class="view-header flex-between">
+                <h1>Friends Chat</h1>
+                <button class="btn-primary" id="addFriendBtn" title="Add Friend"><i class="fas fa-user-plus"></i> Add
+                    Friend</button>
+            </header>
+
+            <div class="friends-layout">
+                <!-- Left Sidebar: Friends List -->
+                <div class="card friends-sidebar">
+                    <div class="search-box mb-3">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search friends..." id="friendSearchInput"
+                            title="Search friends">
+                    </div>
+                    <div class="friends-list" id="friendsSidebarList">
+                        <p class="text-muted p-3 text-center">No friends added yet.</p>
+                    </div>
+                </div>
+
+                <!-- Right Area: Chat Content -->
+                <div class="card friends-chat-area">
+                    <div class="chat-area-header" id="activeFriendHeader">
+                        <div class="flex-align">
+                            <img src="https://ui-avatars.com/api/?name=Alex&background=random" alt="" class="avatar-sm"
+                                id="activeFriendAvatar">
+                            <div>
+                                <h4 id="activeFriendName">Alex</h4>
+                                <span class="text-muted fs-xs">Away 5m ago</span>
+                            </div>
+                        </div>
+                        <div class="chat-actions">
+                            <button class="btn-icon-sm" title="Call"><i class="fas fa-phone"></i></button>
+                            <button class="btn-icon-sm" title="Video Call"><i class="fas fa-video"></i></button>
+                            <button class="btn-icon-sm" title="Info"><i class="fas fa-info-circle"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="friends-messages-box" id="friendsMessagesBox">
+                        <div class="empty-state py-5">
+                            <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">Select a friend to start chatting.</p>
+                        </div>
+                    </div>
+
+                    <div class="friends-chat-input-row">
+                        <input type="file" id="friendChatFile" class="hidden"
+                            accept="image/*,application/pdf,.doc,.docx,.txt">
+                        <button class="btn-icon" id="friendAttachBtn" title="Attach File"><i
+                                class="fas fa-paperclip"></i></button>
+                        <div class="friends-input-wrapper">
+                            <input type="text" placeholder="Type a message..." id="friendChatInput" title="Chat input">
+                            <button class="btn-icon text-brand" title="Send Emoji"><i class="fas fa-smile"></i></button>
+                        </div>
+                        <button class="btn-send-friend" id="friendSendBtn" title="Send Message"><i
+                                class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 15. SETTINGS VIEW -->
+        <div id="settingsView" class="view">
+            <header class="view-header">
+                <h1>Settings</h1>
+            </header>
+
+            <div class="settings-grid">
+                <div class="card col-span-2">
+                    <h3>Personalization</h3>
+                    <div class="form-group row-align mt-3">
+                        <label>Assistant Name</label>
+                        <input type="text" class="form-control max-width-250" value="JEXI" title="Assistant name">
+                    </div>
+                    <div class="form-group row-align mt-3">
+                        <label>Theme Preference</label>
+                        <div class="toggle-switch">
+                            <span>Dark</span>
+                            <label class="switch">
+                                <input type="checkbox" id="themeToggleBtn" title="Toggle theme">
+                                <span class="slider round"></span>
+                            </label>
+                            <span>Light</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card col-span-2">
+                    <h3>API Providers & Routes</h3>
+                    <p class="text-muted fs-sm mb-3">Manage which provider handles which task by default. Ensure
+                        keys are set in backend .env.</p>
+
+                    <table class="settings-table w-100">
+                        <tr>
+                            <td>General Chat</td>
+                            <td>
+                                <select class="form-control" title="Select chat provider">
+                                    <option>Groq (llama-3.3)</option>
+                                    <option>Gemini 1.5 Pro</option>
+                                </select>
+                            </td>
+                            <td><span class="status-dot green"></span> Active</td>
+                        </tr>
+                        <tr>
+                            <td>DevPartner (Coding)</td>
+                            <td>
+                                <select class="form-control" title="Select chat provider">
+                                    <option>Cohere (Command-R+)</option>
+                                    <option>Gemini 1.5 Pro</option>
+                                </select>
+                            </td>
+                            <td><span class="status-dot green"></span> Active</td>
+                        </tr>
+                        <tr>
+                            <td>Data Parsing & NLP</td>
+                            <td>
+                                <select class="form-control" title="Select chat provider">
+                                    <option>Groq (llama-3.1-8b)</option>
+                                </select>
+                            </td>
+                            <td><span class="status-dot green"></span> Active</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="card col-span-2 mt-4">
+                    <h3><i class="fas fa-key"></i> Shared API Keys</h3>
+                    <p class="text-muted fs-sm mb-3">Your friends can contribute their own API keys to increase
+                        the group's rate limits.
+                        Keys are encrypted and stored securely.</p>
+
+                    <div class="grid-2-col mt-4">
+                        <div class="form-group">
+                            <label>Provider</label>
+                            <select class="form-control" id="friendKeyProvider" title="Select API provider">
+                                <option value="groq">Groq</option>
+                                <option value="openrouter">OpenRouter</option>
+                                <option value="gemini">Google Gemini</option>
+                                <option value="hf">HuggingFace</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock"></i>
+                                <input type="text" class="form-control" id="friendKeyInput" autocomplete="off"
+                                    placeholder="sk-...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn-primary w-100" id="submitFriendKeyBtn">
+                            <i class="fas fa-plus-circle"></i> Add Key to Pool
+                        </button>
+                    </div>
+
+                    <div class="mt-4 border-top-1px padding-top-1rem">
+                        <h4>Pool Status</h4>
+                        <div class="flex-between fs-sm text-muted mt-2">
+                            <span>Active Keys in Pool:</span>
+                            <span class="text-green fw-bold" id="shared-pool-status">0 (Groq, OpenRouter)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card col-span-2 mt-4">
+                    <h3><i class="fas fa-shield-alt"></i> Security & Active Sessions</h3>
+                    <p class="text-muted fs-sm mb-3">Manage your active logins across different devices and
+                        browsers.</p>
+
+                    <div class="session-management-area">
+                        <div id="activeSessionsList" class="active-sessions-list">
+                            <div class="text-center p-3 opacity-50">Loading active sessions...</div>
+                        </div>
+                        <div class="text-center mt-4 border-top-1px pt-3">
+                            <button id="logoutAllBtn" class="btn-secondary btn-sm text-red">
+                                <i class="fas fa-user-slash"></i> Log out of all other devices
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card col-span-2 mt-4 text-center">
+                    <button id="logoutBtn" class="btn btn-outline text-red" title="Logout"><i
+                            class="fas fa-sign-out-alt"></i>
+                        Logout</button>
+                    <p class="mt-3 text-muted fs-sm">JEXI Personal AI Life OS v1.0.0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 16. ADMIN VIEW -->
+        <div id="adminView" class="view">
+            <header class="view-header">
+                <h1>User Management (Admin)</h1>
+            </header>
+
+            <div class="dashboard-grid">
+                <div class="card col-span-2">
+                    <h3>Add New Friend/User</h3>
+                    <p class="text-muted fs-sm mb-4">Create an account for a friend. They will be automatically
+                        added to your friends list.</p>
+
+                    <form id="adminAddUserForm" class="grid-2-col">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="adminNewUsername" class="form-control"
+                                placeholder="Friend's username" autocomplete="new-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Initial Password</label>
+                            <input type="text" id="adminNewPassword" class="form-control" autocomplete="off"
+                                placeholder="Secret password" required>
+                        </div>
+                        <div class="col-span-2 text-right mt-3">
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-plus-circle"></i> Create & Add Friend
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card col-span-2">
+                    <h3>Manage Users</h3>
+                    <table class="settings-table w-100" id="adminUserTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminUserList">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        </main>
+    </div>
     </div>
 
     <!-- ================== MODALS & OVERLAYS ================== -->
@@ -1295,15 +1387,212 @@
     <div id="genericModal" class="modal-overlay hidden">
         <div class="modal-card">
             <div class="modal-header">
-                <h3>Modal Title</h3>
-                <button class="btn-icon" title="Close modal"><i class="fas fa-times"></i></button>
+                <h3 id="genericModalTitle">Modal Title</h3>
+                <button class="btn-icon" onclick="utils.hideModal('genericModal')" title="Close modal"><i
+                        class="fas fa-times"></i></button>
             </div>
-            <div class="modal-body">
+            <div id="genericModalBody" class="modal-body">
                 <p>Modal content goes here.</p>
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" title="Cancel">Cancel</button>
-                <button class="btn-primary" title="Confirm">Confirm</button>
+                <button class="btn-secondary" onclick="utils.hideModal('genericModal')" title="Cancel">Cancel</button>
+                <button class="btn-primary" id="genericModalConfirm" title="Confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="task-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Create New Task</h3>
+                <button class="btn-icon" onclick="utils.hideModal('task-modal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label>Task Title</label>
+                    <input type="text" id="task-title-input" class="form-control" placeholder="What needs to be done?">
+                </div>
+                <div class="grid-2-col gap-3">
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="task-priority-input" class="form-control">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="task-due-input" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="utils.hideModal('task-modal')">Cancel</button>
+                <button class="btn-primary" onclick="window.tasksHandler.saveNewTask()">Create Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Edit Modal -->
+    <div id="task-edit-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Edit Task</h3>
+                <button class="btn-icon" onclick="utils.hideModal('task-edit-modal')"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="task-edit-id">
+                <div class="form-group mb-3">
+                    <label>Task Title</label>
+                    <input type="text" id="task-edit-title-input" class="form-control">
+                </div>
+                <div class="grid-2-col gap-3">
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="task-edit-priority-input" class="form-control">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="task-edit-status-input" class="form-control">
+                            <option value="pending">Pending</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="utils.hideModal('task-edit-modal')">Cancel</button>
+                <button class="btn-primary" onclick="window.tasksHandler.saveEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goal Modal -->
+    <div id="goal-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Set New Goal</h3>
+                <button class="btn-icon" onclick="utils.hideModal('goal-modal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label>Goal Name</label>
+                    <input type="text" id="goal-title" class="form-control" placeholder="e.g., Run a Marathon">
+                </div>
+                <div class="form-group mb-3">
+                    <label>Category</label>
+                    <select id="goal-type" class="form-control">
+                        <option value="Health">Health</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Career">Career</option>
+                        <option value="Personal">Personal</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Target Date</label>
+                    <input type="date" id="goal-target" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="utils.hideModal('goal-modal')">Cancel</button>
+                <button class="btn-primary" onclick="window.goalsHandler.saveGoal()">Create Goal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Habit Modal -->
+    <div id="habit-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Track New Habit</h3>
+                <button class="btn-icon" onclick="utils.hideModal('habit-modal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label>Habit Name</label>
+                    <input type="text" id="habit-name" class="form-control" placeholder="e.g., Drink 2L Water">
+                </div>
+                <div class="form-group">
+                    <label>Daily Target</label>
+                    <input type="number" id="habit-goal" class="form-control" placeholder="e.g. 1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="utils.hideModal('habit-modal')">Cancel</button>
+                <button class="btn-primary" onclick="window.habitsHandler.saveHabit()">Set Habit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Modal -->
+    <div id="finance-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Add Transaction</h3>
+                <button class="btn-icon" onclick="utils.hideModal('finance-modal')"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label>Description</label>
+                    <input type="text" id="trans-description" class="form-control" placeholder="e.g. Grocery Shop">
+                </div>
+                <div class="grid-2-col gap-3">
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" id="trans-amount" step="0.01" class="form-control" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="trans-type" class="form-control">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group mt-3">
+                    <label>Category</label>
+                    <select id="trans-category" class="form-control">
+                        <option value="Food">Food</option>
+                        <option value="Rent">Rent</option>
+                        <option value="Travel">Travel</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="utils.hideModal('finance-modal')">Cancel</button>
+                <button class="btn-primary" onclick="window.financeHandler.saveTransaction()">Save Transaction</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Parse Modal -->
+    <div id="finance-ai-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>AI Finance Parser</h3>
+                <button class="btn-icon" onclick="utils.hideModal('finance-ai-modal')"><i
+                        class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label>Paste Text (e.g. from bank statement or receipt)</label>
+                    <textarea id="finance-ai-input" class="form-control" rows="5"
+                        placeholder="Spent $45.20 at Starbucks yesterday..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="utils.hideModal('finance-ai-modal')">Cancel</button>
+                <button class="btn-primary" onclick="window.financeHandler.processAIParse()">AI Parse & Add</button>
             </div>
         </div>
     </div>

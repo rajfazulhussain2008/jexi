@@ -29,8 +29,20 @@ const app = {
                 .catch(err => console.error("SW Registration failed:", err));
         }
 
+        // Notify Android Native Bridge if running inside App
+        if (window.JexiBridge) {
+            try {
+                window.JexiBridge.onAppReady("JEXI Frontend Initialized");
+            } catch (e) {
+                console.error("Bridge signal failed:", e);
+            }
+        }
+
         // Online/Offline Status Listeners
-        window.addEventListener('online', () => utils.updateSyncStatus("online"));
+        window.addEventListener('online', () => {
+            utils.updateSyncStatus("online");
+            if (api.syncPendingData) api.syncPendingData();
+        });
         window.addEventListener('offline', () => utils.updateSyncStatus("offline"));
         utils.updateSyncStatus(navigator.onLine ? "online" : "offline");
     },

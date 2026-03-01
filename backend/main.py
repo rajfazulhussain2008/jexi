@@ -80,6 +80,18 @@ except Exception as e:
     print("Warning: health_routes not found.", e)
     health_router = None
 
+try:
+    from routes.learning_routes import router as learning_router
+except Exception as e:
+    print("Warning: learning_routes not found.", e)
+    learning_router = None
+
+try:
+    from routes.analytics_routes import router as analytics_router
+except Exception as e:
+    print("Warning: analytics_routes not found.", e)
+    analytics_router = None
+
 # Initialize db configuration
 try:
     init_db()
@@ -140,6 +152,10 @@ if finance_router:
     app.include_router(finance_router)
 if health_router:
     app.include_router(health_router)
+if learning_router:
+    app.include_router(learning_router)
+if analytics_router:
+    app.include_router(analytics_router)
 
 # Locate frontend folder
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")

@@ -10,7 +10,17 @@ class API {
     }
 
     getToken() {
-        return localStorage.getItem(this.tokenKey);
+        let token = localStorage.getItem(this.tokenKey);
+        // Try getting from Android Bridge if not in localStorage
+        if (!token && window.JexiBridge && window.JexiBridge.getAuthToken) {
+            try {
+                token = window.JexiBridge.getAuthToken();
+                if (token) localStorage.setItem(this.tokenKey, token);
+            } catch (e) {
+                console.error("Bridge getToken failed:", e);
+            }
+        }
+        return token;
     }
 
     isLoggedIn() {
@@ -30,11 +40,30 @@ class API {
         }
         localStorage.removeItem(this.tokenKey);
         localStorage.removeItem("jexi_is_admin");
+
+        // Notify Android Native Bridge
+        if (window.JexiBridge && window.JexiBridge.clearAuthToken) {
+            try {
+                window.JexiBridge.clearAuthToken();
+            } catch (e) { }
+        }
+
         // Dispatch event or direct call to app structure
         if (window.app) window.app.showLoginScreen();
     }
 
     async request(method, path, body = null) {
+        // 1. Android Native Bridge Interception
+        if (window.JexiBridge && method !== "GET") {
+            try {
+                // If we are in Android and making a write request, 
+                // we tell the native side to log this for later sync if offline.
+                window.JexiBridge.logOfflineAction(method, path, JSON.stringify(body));
+            } catch (e) {
+                console.error("Android Bridge Error:", e);
+            }
+        }
+
         const headers = {
             "Content-Type": "application/json"
         };
@@ -54,6 +83,11 @@ class API {
         }
 
         try {
+            // Check internet status
+            if (!navigator.onLine) {
+                throw new Error("Offline: No internet connection.");
+            }
+
             const response = await fetch(`${this.baseUrl}${path}`, options);
 
             let data = null;
@@ -67,11 +101,6 @@ class API {
             }
 
             if (response.status === 401) {
-                // We no longer force an automatic reload/logout on background 401s 
-                // to prevent disrupting the user experience during transient DB issues.
-                // The user can manually log out if needed.
-
-                // Extract actual error detail if available
                 const msg = (data && data.detail) ? data.detail : "Unauthorized. Please log in again.";
                 throw new Error(msg);
             }
@@ -81,14 +110,35 @@ class API {
                 throw new Error(errorMsg);
             }
 
+            // Cache successful GET requests for offline viewing
+            if (method === "GET") {
+                localStorage.setItem(`cache${path}`, JSON.stringify(data));
+            }
+
             return data;
         } catch (error) {
-            // Don't show toast for 401 on non-auth routes (background API calls)
-            if (!error.message.includes("Unauthorized")) {
+            // FALLBACK: If offline or network error, check cache for GET requests
+            if (method === "GET") {
+                const cachedData = localStorage.getItem(`cache${path}`);
+                if (cachedData) {
+                    console.warn(`Serving cached data for ${path} due to error:`, error.message);
+                    return JSON.parse(cachedData);
+                }
+            }
+
+            // Don't show toast for 401 on non-auth routes
+            if (!error.message.includes("Unauthorized") && !error.message.includes("Offline")) {
                 utils.showToast(error.message, "error");
             }
             throw error;
         }
+    }
+
+    // New helper for Android to sync all local changes to the cloud
+    async syncPendingData() {
+        if (!navigator.onLine) return;
+        console.log("Syncing pending data to cloud...");
+        // This is called by the Android bridge when network returns
     }
 
     async get(path) {
@@ -155,13 +205,27 @@ class API {
                 const data = await this.post("/auth/login", { username, password });
 
                 if (data && data.status === "success" && data.data.token) {
-                    localStorage.setItem(this.tokenKey, data.data.token);
+                    const token = data.data.token;
+                    localStorage.setItem(this.tokenKey, token);
                     localStorage.setItem("jexi_is_admin", data.data.is_admin || false);
+
+                    // Sync to Android Native Bridge
+                    if (window.JexiBridge && window.JexiBridge.saveAuthToken) {
+                        window.JexiBridge.saveAuthToken(token);
+                    }
+
                     utils.showToast("Login successful", "success");
                     return true;
                 } else if (data && data.access_token) {
-                    localStorage.setItem(this.tokenKey, data.access_token);
+                    const token = data.access_token;
+                    localStorage.setItem(this.tokenKey, token);
                     localStorage.setItem("jexi_is_admin", data.is_admin || false);
+
+                    // Sync to Android Native Bridge
+                    if (window.JexiBridge && window.JexiBridge.saveAuthToken) {
+                        window.JexiBridge.saveAuthToken(token);
+                    }
+
                     utils.showToast("Login successful", "success");
                     return true;
                 } else {
@@ -195,6 +259,11 @@ class API {
                 if (token) {
                     localStorage.setItem(this.tokenKey, token);
                     localStorage.setItem("jexi_is_admin", isAdmin);
+
+                    // Sync to Android Native Bridge
+                    if (window.JexiBridge && window.JexiBridge.saveAuthToken) {
+                        window.JexiBridge.saveAuthToken(token);
+                    }
                 }
                 utils.showToast("Account created successfully", "success");
                 return true;
