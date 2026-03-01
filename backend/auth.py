@@ -42,13 +42,16 @@ def is_session_valid(jti: str) -> bool:
     try:
         rows = sb_select("sessions", filters={"token_jti": jti})
         if not rows:
-            return True # If not found (old legacy tokens), allow for now or return False for strict
+            print(f"DEBUG: JTI {jti} not found in database. Allowing for legacy/sync.")
+            return True 
         
         session = rows[0]
-        return not session.get("is_revoked", False)
+        status = not session.get("is_revoked", False)
+        print(f"DEBUG: JTI {jti} validation status: {status} (is_revoked: {session.get('is_revoked')})")
+        return status
     except Exception as e:
-        print(f"DEBUG: Session check failed for JTI {jti}: {e}")
-        return True # Fail open to prevent locking everyone out if DB is slow
+        print(f"DEBUG: Session check CRITICAL FAILURE for JTI {jti}: {e}")
+        return True # Fail open
 
 
 
