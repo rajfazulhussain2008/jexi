@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Request, HTTPException, status
 from jose import jwt, JWTError
 import bcrypt
+import uuid
+from supabase_rest import sb_select
 
 from config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRY_HOURS
 
@@ -27,11 +29,26 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_token(data: dict) -> str:
-    """Create a JWT token with an expiry claim."""
+    """Create a JWT token with an expiry claim and a unique JTI."""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS)
-    to_encode.update({"exp": expire})
+    jti = str(uuid.uuid4())
+    to_encode.update({"exp": expire, "jti": jti})
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def is_session_valid(jti: str) -> bool:
+    """Check if the session JTI has been revoked in the database."""
+    try:
+        rows = sb_select("sessions", filters={"token_jti": jti})
+        if not rows:
+            return True # If not found (old legacy tokens), allow for now or return False for strict
+        
+        session = rows[0]
+        return not session.get("is_revoked", False)
+    except Exception:
+        return True # Fail open to prevent locking everyone out if DB is slow
+
 
 
 def verify_token(token: str) -> dict | None:
@@ -67,10 +84,20 @@ async def get_current_user(request: Request) -> int:
         )
 
     user_id = payload.get("user_id")
-    if user_id is None:
+    jti = payload.get("jti")
+    
+    if user_id is None or jti is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token payload missing user_id",
+            detail="Token payload missing required claims",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check if session is revoked
+    if not is_session_valid(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked or logged out from another device",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

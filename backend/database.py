@@ -74,6 +74,8 @@ def init_db():
     from models.friendship import Friendship
     from models.chat_message import ChatMessage
     from models.book import Book
+    from models.security_log import SecurityLog
+    from models.session import Session
 
     try:
         Base.metadata.create_all(bind=engine)

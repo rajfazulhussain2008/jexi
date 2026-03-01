@@ -38,6 +38,12 @@ except Exception as e:
     print("Warning: admin_routes not found or failed to load.", e)
     admin_router = None
 
+try:
+    from routes.notification_routes import router as notification_router
+except Exception as e:
+    print("Warning: notification_routes not found or failed to load.", e)
+    notification_router = None
+
 # Initialize db configuration
 try:
     init_db()
@@ -84,6 +90,8 @@ if social_router:
     app.include_router(social_router)
 if admin_router:
     app.include_router(admin_router)
+if notification_router:
+    app.include_router(notification_router)
 
 # Locate frontend folder
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")

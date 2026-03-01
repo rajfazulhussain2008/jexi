@@ -19,6 +19,7 @@ user_tokens = {}
 admin_users = {}
 user_backend_ids = {} # {chat_id: user_id}
 last_seen_msg_ids = {} # {chat_id: {friend_id: last_id}}
+last_seen_note_ids = {} # {chat_id: last_id}
 user_modes = {}  # Keeps track of whether user is talking to "ai" or a specific friend {"type": "ai", "friend_id": None, "friend_name": None}
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
@@ -182,7 +183,56 @@ def handle_admin_users(message):
             
         bot.reply_to(message, reply, parse_mode="Markdown")
     except Exception as e:
-        bot.reply_to(message, f"❌ Failed to fetch users: {e}")
+        bot.reply_to(message, f"❌ Error fetching history: {e}")
+
+@bot.message_handler(commands=['active_sessions'])
+def list_my_sessions(message):
+    chat_id = message.chat.id
+    token = get_jexi_token(chat_id)
+    if not token: return
+    
+    bot.send_chat_action(chat_id, 'typing')
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = httpx.get(f"{JEXI_BASE_URL}/auth/sessions", headers=headers, timeout=10.0)
+        resp.raise_for_status()
+        sessions = resp.json().get("data", [])
+        
+        if not sessions:
+            bot.reply_to(message, "No active sessions found.")
+            return
+            
+        report = "📱 **Active Login Sessions**\n\n"
+        for s in sessions:
+            device = s.get('user_agent', 'Unknown')[:40] + "..."
+            report += f"📍 IP: `{s.get('ip_address')}`\n📱 Device: {device}\n"
+            report += f"🗓 Created: {s.get('created_at', '')[:16]}\n"
+            report += "---" * 5 + "\n\n"
+            
+        report += "\n⚠️ If you see an unknown device, type `/logout_all` immediately."
+        bot.reply_to(message, report, parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Error: {e}")
+
+@bot.message_handler(commands=['logout_all'])
+def force_logout_all(message):
+    chat_id = message.chat.id
+    token = get_jexi_token(chat_id)
+    if not token: return
+    
+    bot.reply_to(message, "⏳ Revoking all sessions...")
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = httpx.post(f"{JEXI_BASE_URL}/auth/logout-all", headers=headers, timeout=10.0)
+        resp.raise_for_status()
+        
+        bot.reply_to(message, "✅ **Security Lockdown Complete.**\n\nAll session tokens have been revoked. Every device (including this bot session) will be logged out on its next action.\n\nPlease `/login` again to start a new secure session.", parse_mode="Markdown")
+        
+        # Clear local token too
+        if chat_id in user_tokens: del user_tokens[chat_id]
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ Error during lockdown: {e}")
 
 @bot.message_handler(commands=['create_user'])
 def handle_admin_create_user(message):
@@ -531,6 +581,45 @@ def poll_chat_messages():
                 except Exception:
                     pass
 
+def poll_notifications():
+    """Poll for unread system notifications (Security alerts, etc) for all logged-in users."""
+    while True:
+        time.sleep(10) # Poll and alert every 10 seconds
+        for chat_id in list(user_tokens.keys()):
+            token = user_tokens.get(chat_id)
+            if not token: continue
+            
+            try:
+                headers = {"Authorization": f"Bearer {token}"}
+                resp = httpx.get(f"{JEXI_BASE_URL}/notifications", headers=headers, timeout=10.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    notes = data.get("data", [])
+                    
+                    last_id = last_seen_note_ids.get(chat_id, 0)
+                    new_notes = [n for n in notes if n.get("id", 0) > last_id]
+                    
+                    for n in new_notes:
+                        icon = "🔔"
+                        if n.get("type") == "warning": icon = "⚠️ **SECURITY ALERT**"
+                        
+                        msg = f"{icon}\n\n**{n.get('title', 'Notification')}**\n{n.get('message', '')}"
+                        bot.send_message(chat_id, msg, parse_mode="Markdown")
+                        
+                        # Mark as read in backend
+                        httpx.post(f"{JEXI_BASE_URL}/notifications/{n['id']}/read", headers=headers)
+                        
+                        last_id = max(last_id, n.get("id", 0))
+                    
+                    last_seen_note_ids[chat_id] = last_id
+                    
+                    # If first time, just set the watermark
+                    if last_id == 0 and notes:
+                        last_seen_note_ids[chat_id] = max([n.get("id", 0) for n in notes])
+                        
+            except Exception:
+                pass
+
 if __name__ == "__main__":
     if TELEGRAM_BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN_HERE":
         print("ERROR: Please update TELEGRAM_BOT_TOKEN in this script or your .env file!")
@@ -539,4 +628,5 @@ if __name__ == "__main__":
         # Start background pollers
         threading.Thread(target=poll_suggestions, daemon=True).start()
         threading.Thread(target=poll_chat_messages, daemon=True).start()
+        threading.Thread(target=poll_notifications, daemon=True).start()
         bot.infinity_polling(timeout=10, long_polling_timeout=5)

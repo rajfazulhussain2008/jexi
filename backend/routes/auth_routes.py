@@ -6,7 +6,7 @@ This bypasses psycopg2/SQLAlchemy and works on Vercel serverless functions.
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from auth import hash_password, verify_password, create_token, get_current_user
+from auth import hash_password, verify_password, create_token, get_current_user, verify_token
 from supabase_rest import sb_select, sb_insert, sb_update, sb_count
 from datetime import datetime, timezone, timedelta
 
@@ -27,7 +27,7 @@ class ResetPasswordRequest(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────────
 @router.post("/setup")
-async def setup(body: AuthRequest):
+async def setup(body: AuthRequest, request: Request):
     """First-time setup — create the ONLY/initial admin account."""
     try:
         # Check if any user already exists
@@ -64,7 +64,7 @@ async def setup(body: AuthRequest):
     except HTTPException:
         raise
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/login")
@@ -127,7 +127,30 @@ async def login(body: AuthRequest, request: Request):
             "event_type": "login_success",
             "ip_address": client_ip,
             "user_agent": client_ua,
-            "details": "Authenticated via Web"
+            "details": f"Authenticated via Web on {client_ua[:30]}..."
+        })
+
+        # Register Active Session
+        # Extract JTI from the token we just made
+        payload = verify_token(token)
+        jti = payload.get("jti")
+        
+        sb_insert("sessions", {
+            "user_id": user["id"],
+            "token_jti": jti,
+            "ip_address": client_ip,
+            "user_agent": client_ua,
+            "is_revoked": False
+        })
+
+        # Create a notification for the user about the new login
+        # This will be picked up by the Telegram Bot for Admin
+        sb_insert("notifications", {
+            "user_id": user["id"],
+            "type": "warning",
+            "title": "New Login Detected",
+            "message": f"A new device logged into your JEXI account.\n\n📍 IP: {client_ip}\n📱 Device: {client_ua[:50]}...",
+            "action_url": "/settings"
         })
 
         return {
@@ -137,7 +160,7 @@ async def login(body: AuthRequest, request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/me")
@@ -194,3 +217,44 @@ async def reset_password(body: ResetPasswordRequest):
         "hashed_password": hash_password(body.new_password)
     })
     return {"status": "success", "data": {"message": f"Password reset for {body.username}"}}
+
+
+@router.get("/sessions")
+async def list_active_sessions(user_id: int = Depends(get_current_user)):
+    """List all active (non-revoked) sessions for the current user."""
+    try:
+        sessions = sb_select("sessions", filters={"user_id": user_id, "is_revoked": False})
+        return {"status": "success", "data": sessions}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/sessions/{session_id}/revoke")
+async def revoke_session(session_id: int, user_id: int = Depends(get_current_user)):
+    """Remote logout: Revoke a specific session."""
+    try:
+        # Check ownership
+        rows = sb_select("sessions", filters={"id": session_id, "user_id": user_id})
+        if not rows:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        sb_update("sessions", "id", session_id, {"is_revoked": True})
+        
+        return {"status": "success", "message": "Session revoked. That device will be logged out on next request."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/logout-all")
+async def logout_all_devices(user_id: int = Depends(get_current_user)):
+    """Revoke ALL sessions for the current user."""
+    try:
+        # Note: sb_update by filter column is simple, but Supabase/PostgREST allows mass updates
+        # For safety/simplicity in this helper, we fetch and loop or use raw if we had it
+        sessions = sb_select("sessions", filters={"user_id": user_id, "is_revoked": False})
+        for s in sessions:
+            sb_update("sessions", "id", s["id"], {"is_revoked": True})
+            
+        return {"status": "success", "message": "All sessions revoked. Re-login required on all devices."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
