@@ -58,14 +58,21 @@
                             <i class="fas fa-lock"></i>
                             <input type="password" id="passwordInput" autocomplete="current-password"
                                 placeholder="Enter your password" required>
+                            <i class="fas fa-eye toggle-password" id="togglePassword"></i>
                         </div>
                     </div>
-                    <button type="submit" class="btn-primary login-btn">
-                        <span>Login / Setup</span>
+                    <button type="submit" class="btn-primary login-btn" id="loginSubmitBtn">
+                        <span class="btn-text">Login / Setup</span>
+                        <div class="btn-spinner hidden"><i class="fas fa-spinner fa-spin"></i></div>
                         <i class="fas fa-arrow-right"></i>
                     </button>
                 </form>
-                <div id="loginError" class="login-error hidden"></div>
+                <div id="loginError" class="login-error-toast hidden"></div>
+                <div class="login-footer mt-4">
+                    <a href="#" class="fs-xs text-muted">Forgot Password?</a>
+                    <span class="mx-2">·</span>
+                    <a href="#" class="fs-xs text-muted">Need help?</a>
+                </div>
             </div>
         </div>
 

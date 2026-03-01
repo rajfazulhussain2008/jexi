@@ -6,11 +6,13 @@ const app = {
 
         if (!api.isLoggedIn()) {
             this.showLoginScreen();
+            this.setupLoginInteractions();
             return;
         }
 
         this.showMainApp();
         this.setupNavHandlers();
+        this.setupLoginInteractions();
 
         // Initial view
         this.switchView('dashboardView', 0);
@@ -150,11 +152,21 @@ const app = {
         e.preventDefault();
         const user = document.getElementById("usernameInput").value.trim();
         const pass = document.getElementById("passwordInput").value;
+        const submitBtn = document.getElementById("loginSubmitBtn");
+        const btnText = submitBtn?.querySelector(".btn-text");
+        const btnSpinner = submitBtn?.querySelector(".btn-spinner");
+        const loginError = document.getElementById("loginError");
 
         if (!user || !pass) {
             utils.showToast("Please enter username and password", "warning");
             return;
         }
+
+        // Show loading state
+        if (submitBtn) submitBtn.disabled = true;
+        if (btnText) btnText.style.opacity = "0.5";
+        if (btnSpinner) btnSpinner.classList.remove("hidden");
+        if (loginError) loginError.classList.add("hidden");
 
         const goToApp = () => {
             this.showMainApp();
@@ -166,7 +178,32 @@ const app = {
             await api.login(user, pass);
             goToApp();
         } catch (loginErr) {
-            utils.showToast("Login failed. Check your username and password.", "error");
+            console.error("Login Error:", loginErr);
+            if (loginError) {
+                loginError.textContent = "Login failed. Please check your credentials.";
+                loginError.classList.remove("hidden");
+            } else {
+                utils.showToast("Login failed. Check your username and password.", "error");
+            }
+        } finally {
+            // Restore state
+            if (submitBtn) submitBtn.disabled = false;
+            if (btnText) btnText.style.opacity = "1";
+            if (btnSpinner) btnSpinner.classList.add("hidden");
+        }
+    },
+
+    setupLoginInteractions() {
+        const toggleBtn = document.getElementById("togglePassword");
+        const passInput = document.getElementById("passwordInput");
+
+        if (toggleBtn && passInput) {
+            toggleBtn.addEventListener("click", () => {
+                const type = passInput.getAttribute("type") === "password" ? "text" : "password";
+                passInput.setAttribute("type", type);
+                toggleBtn.classList.toggle("fa-eye");
+                toggleBtn.classList.toggle("fa-eye-slash");
+            });
         }
     },
 
