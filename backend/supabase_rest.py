@@ -62,7 +62,7 @@ def sb_delete(table: str, filter_col: str, filter_val) -> None:
 
 def sb_count(table: str, filters: dict = None, query_string: str = None) -> int:
     """Count rows in a table with optional filters."""
-    url = f"{SUPABASE_URL}/rest/v1/{table}?select=count"
+    url = f"{SUPABASE_URL}/rest/v1/{table}?select=id"
     if filters:
         for key, value in filters.items():
             url += f"&{key}=eq.{value}"
