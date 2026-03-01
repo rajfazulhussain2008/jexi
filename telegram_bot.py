@@ -91,19 +91,26 @@ def send_to_friend(message_text, friend_id, token):
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     welcome_text = (
-        "🤖 **Welcome to the JEXI Multi-Assist Bot!**\n\n"
-        "This bot requires a Jexi dashboard account.\n\n"
-        "**Comamnds:**\n"
-        "`/login username pass` - Log in securely\n"
-        "`/logout` - Log out securely\n"
-        "`/ai` - Talk to your Jexi AI Assistant (default)\n"
-        "`/friends` - List your friends & start chatting with them\n\n"
-        "*(Admins Only)*\n"
-        "`/admin_users` - List all registered Jexi users\n"
-        "`/create_user user pass` - Make a new user & friend them automatically\n"
-        "`/suggestions` - View all suggestions and AI action plans\n"
+        "🤖 **Welcome to JEXI Life OS Bot!**\n\n"
+        "Your personal AI-powered Life Assistant.\n\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "📋 **Getting Started:**\n"
+        "`/login username password` — Log in to JEXI\n"
+        "`/register username password` — Create a new account\n"
+        "`/logout` — Log out securely\n\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "💬 **Features:**\n"
+        "`/ai` — Talk to JEXI AI Assistant\n"
+        "`/friends` — Chat with friends\n\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "👑 **Admin Only:**\n"
+        "`/admin_users` — List all users\n"
+        "`/create_user user pass` — Create a user account\n"
+        "`/suggestions` — View AI-refined suggestions\n\n"
+        "🌐 _jexi-flax.vercel.app_"
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
+
 
 @bot.message_handler(commands=['logout'])
 def logout_user(message):
@@ -136,21 +143,87 @@ def login_user(message):
         data = response.json()
         
         if data.get("status") == "success":
-            user_tokens[chat_id] = data["data"]["token"]
-            user_backend_ids[chat_id] = data["data"].get("id")
+            login_data = data.get("data", {})
+            user_tokens[chat_id] = login_data.get("token", "")
+            user_backend_ids[chat_id] = login_data.get("id")  # Fixed: id is inside data.data
             
             # Grant admin super-powers in Telegram
-            admin_users[chat_id] = data["data"].get("is_admin", False)
+            admin_users[chat_id] = login_data.get("is_admin", False)
             
             set_user_mode(chat_id, "ai") # Default to AI mode
-            bot.reply_to(message, f"✅ **Login Successful!**\n\nWelcome back, *{username}*! You are now speaking to **JEXI AI**.\nType `/friends` to chat with real people!", parse_mode="Markdown")
+            admin_tag = " 👑 *[Admin]*" if admin_users[chat_id] else ""
+            bot.reply_to(message, f"✅ **Login Successful!**\n\nWelcome, *{username}*{admin_tag}! You are now speaking to **JEXI AI**.\nType `/friends` to chat with real people!", parse_mode="Markdown")
             
             try: bot.delete_message(chat_id, message.message_id)
             except: pass
         else:
-            bot.reply_to(message, "❌ Server login failed.")
+            bot.reply_to(message, "❌ Server login failed. Please check your username and password.")
     except Exception as e:
          bot.reply_to(message, f"❌ Cloud server is unreachable right now: {str(e)}")
+
+
+@bot.message_handler(commands=['register'])
+def register_user(message):
+    """Allow new users to create a JEXI account or get instructions."""
+    parts = message.text.split()
+    chat_id = message.chat.id
+
+    if len(parts) != 3:
+        bot.reply_to(message,
+            "📝 **Create Your JEXI Account**\n\n"
+            "Format: `/register YourName YourPassword`\n\n"
+            "⚠️ *Choose a strong password (min 6 chars)!*\n"
+            "Your message will be auto-deleted for security.",
+            parse_mode="Markdown")
+        return
+
+    _, username, password = parts
+
+    if len(password) < 6:
+        bot.reply_to(message, "❌ Password must be at least 6 characters long.")
+        try: bot.delete_message(chat_id, message.message_id)
+        except: pass
+        return
+
+    bot.send_chat_action(chat_id, 'typing')
+
+    try:
+        # Check existing users to see if setup is done
+        check_resp = httpx.get(f"{JEXI_BASE_URL}/auth/users", timeout=10.0)
+        users_list = check_resp.json().get("data", []) if check_resp.status_code == 200 else []
+
+        if not users_list:
+            # No users exist - use setup route
+            response = httpx.post(f"{JEXI_BASE_URL}/auth/setup",
+                                  json={"username": username, "password": password}, timeout=10.0)
+            if response.status_code in [200, 201]:
+                data = response.json()
+                login_data = data.get("data", {})
+                user_tokens[chat_id] = login_data.get("token", "")
+                admin_users[chat_id] = login_data.get("is_admin", False)
+                set_user_mode(chat_id, "ai")
+                bot.reply_to(message,
+                    f"✅ **Account Created & Logged In!**\n\nWelcome, *{username}*! 🎉\nType anything to talk to JEXI AI!",
+                    parse_mode="Markdown")
+            else:
+                err = response.json().get("detail", "Unknown error")
+                bot.reply_to(message, f"❌ Registration failed: `{err}`", parse_mode="Markdown")
+        else:
+            # Admin needs to create accounts for friends
+            bot.reply_to(message,
+                "⚠️ **New Account Needed**\n\n"
+                "Ask the JEXI Admin (*@rajfazulhussain2008*) to create an account for you.\n\n"
+                "Alternatively, visit the website directly:\n"
+                "🌐 https://jexi-flax.vercel.app/",
+                parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Server unreachable: {str(e)}")
+
+    # Always delete the register message to protect the password
+    try: bot.delete_message(chat_id, message.message_id)
+    except: pass
+
+
 
 @bot.message_handler(commands=['admin_users'])
 def handle_admin_users(message):
