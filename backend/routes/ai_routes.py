@@ -2,7 +2,7 @@
 import asyncio
 import uuid
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -173,7 +173,7 @@ async def chat(
     except HTTPException:
         raise
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 async def _auto_extract_facts(user_id, message, memory_svc):
