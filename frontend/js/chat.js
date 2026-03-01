@@ -91,11 +91,15 @@ window.chatHandler = {
         } catch (err) {
             console.error("Chat error:", err);
             this.removeTyping();
-            if (err.message && err.message.includes("Unauthorized")) {
-                this.addMessage("assistant", "⚠️ Your session has expired. Please <strong><a href='#' onclick='localStorage.clear();location.reload();'>click here to log in again</a></strong>.");
-            } else {
-                this.addMessage("assistant", "I'm sorry, an error occurred while processing your request.");
+
+            let errorMsg = "I'm sorry, an error occurred while processing your request.";
+            if (err.message && err.message.includes("revoked")) {
+                errorMsg = "Your session was disconnected. Please try logging in again if this persists.";
+            } else if (err.message && (err.message.includes("Unauthorized") || err.message.includes("expired"))) {
+                errorMsg = "Your current session has expired. You may need to log in again to continue.";
             }
+
+            this.addMessage("assistant", `⚠️ ${errorMsg}`);
         }
     },
 

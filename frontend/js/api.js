@@ -67,10 +67,9 @@ class API {
             }
 
             if (response.status === 401) {
-                // Determine if we should force logout
-                if (path.includes("/auth/me") || path.includes("/auth/login")) {
-                    this.logout();
-                }
+                // We no longer force an automatic reload/logout on background 401s 
+                // to prevent disrupting the user experience during transient DB issues.
+                // The user can manually log out if needed.
 
                 // Extract actual error detail if available
                 const msg = (data && data.detail) ? data.detail : "Unauthorized. Please log in again.";
