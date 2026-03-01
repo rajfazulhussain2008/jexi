@@ -56,6 +56,16 @@ class API {
         try {
             const response = await fetch(`${this.baseUrl}${path}`, options);
 
+            let data = null;
+            const text = await response.text();
+            if (text) {
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = text;
+                }
+            }
+
             if (response.status === 401) {
                 // Determine if we should force logout
                 if (path.includes("/auth/me") || path.includes("/auth/login")) {
@@ -65,16 +75,6 @@ class API {
                 // Extract actual error detail if available
                 const msg = (data && data.detail) ? data.detail : "Unauthorized. Please log in again.";
                 throw new Error(msg);
-            }
-
-            let data = null;
-            const text = await response.text();
-            if (text) {
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    data = text;
-                }
             }
 
             if (!response.ok) {

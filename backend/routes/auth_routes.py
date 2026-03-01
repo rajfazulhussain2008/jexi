@@ -74,44 +74,61 @@ async def login(body: AuthRequest, request: Request):
     client_ua = request.headers.get("user-agent", "unknown")
 
     try:
-        # 1. Check for recent failures (Basic Rate Limiting/Anti-Brute Force)
-        # Check if this IP has > 5 failures in the last 5 minutes
-        five_mins_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
-        fail_count = sb_count("security_logs", 
-                            query_string=f"event_type=eq.login_failed&ip_address=eq.{client_ip}&created_at=gt.{five_mins_ago}")
-        
-        if fail_count >= 10:
-             # Log the lockout attempt
-             sb_insert("security_logs", {
-                 "event_type": "rate_limit_lockout",
-                 "ip_address": client_ip,
-                 "user_agent": client_ua,
-                 "details": f"IP {client_ip} strictly blocked after {fail_count} failed tries."
-             })
-             raise HTTPException(status_code=429, detail="Too many failed attempts. Please try again in 5 minutes.")
+        # SECURITY CHECK: Fail-open brute force protection
+        try:
+            # Check for recent failures (Basic Rate Limiting/Anti-Brute Force)
+            # Check if this IP has > 5 failures in the last 5 minutes
+            five_mins_ago = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+            # Clean isoformat (remove +00:00 and use Z) for PostgREST compatibility
+            clean_ts = five_mins_ago.replace("+00:00", "Z")
+            
+            # Use query_string with manual encoding for the timestamp
+            fail_count = sb_count("security_logs", 
+                                query_string=f"event_type=eq.login_failed&ip_address=eq.{client_ip}&created_at=gt.{clean_ts}")
+            
+            if fail_count >= 10:
+                # Log the lockout attempt
+                try:
+                    sb_insert("security_logs", {
+                        "event_type": "rate_limit_lockout",
+                        "ip_address": client_ip,
+                        "user_agent": client_ua,
+                        "details": f"IP {client_ip} strictly blocked after {fail_count} failed tries."
+                    })
+                except: pass
+                raise HTTPException(status_code=429, detail="Too many failed attempts. Please try again in 5 minutes.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"SECURITY CHECK WARNING: Brute force check failed: {e}")
+            # We continue even if check fails to prevent system-wide lockout due to DB issues
 
         rows = sb_select("users", filters={"username": body.username})
         
         if not rows:
-            # Audit the failure (but don't reveal user doesn't exist to prevent enumeration)
-            sb_insert("security_logs", {
-                "event_type": "login_failed",
-                "ip_address": client_ip,
-                "user_agent": client_ua,
-                "details": f"Attempt for non-existent user: {body.username}"
-            })
+            # Audit the failure
+            try:
+                sb_insert("security_logs", {
+                    "event_type": "login_failed",
+                    "ip_address": client_ip,
+                    "user_agent": client_ua,
+                    "details": f"Attempt for non-existent user: {body.username}"
+                })
+            except: pass
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
         user = rows[0]
         if not verify_password(body.password, user["hashed_password"]):
             # Audit the failure
-            sb_insert("security_logs", {
-                "user_id": user["id"],
-                "event_type": "login_failed",
-                "ip_address": client_ip,
-                "user_agent": client_ua,
-                "details": "Incorrect password"
-            })
+            try:
+                sb_insert("security_logs", {
+                    "user_id": user["id"],
+                    "event_type": "login_failed",
+                    "ip_address": client_ip,
+                    "user_agent": client_ua,
+                    "details": "Incorrect password"
+                })
+            except: pass
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
         # Success - Generate Token
@@ -122,36 +139,42 @@ async def login(body: AuthRequest, request: Request):
         })
 
         # Audit the success
-        sb_insert("security_logs", {
-            "user_id": user["id"],
-            "event_type": "login_success",
-            "ip_address": client_ip,
-            "user_agent": client_ua,
-            "details": f"Authenticated via Web on {client_ua[:30]}..."
-        })
+        try:
+            sb_insert("security_logs", {
+                "user_id": user["id"],
+                "event_type": "login_success",
+                "ip_address": client_ip,
+                "user_agent": client_ua,
+                "details": f"Authenticated via Web on {client_ua[:30]}..."
+            })
+        except: pass
 
         # Register Active Session
         # Extract JTI from the token we just made
         payload = verify_token(token)
         jti = payload.get("jti")
         
-        sb_insert("sessions", {
-            "user_id": user["id"],
-            "token_jti": jti,
-            "ip_address": client_ip,
-            "user_agent": client_ua,
-            "is_revoked": False
-        })
+        try:
+            sb_insert("sessions", {
+                "user_id": user["id"],
+                "token_jti": jti,
+                "ip_address": client_ip,
+                "user_agent": client_ua,
+                "is_revoked": False
+            })
+        except Exception as e:
+            print(f"SESSION REGISTRATION ERROR: {e}")
 
         # Create a notification for the user about the new login
-        # This will be picked up by the Telegram Bot for Admin
-        sb_insert("notifications", {
-            "user_id": user["id"],
-            "type": "warning",
-            "title": "New Login Detected",
-            "message": f"A new device logged into your JEXI account.\n\n📍 IP: {client_ip}\n📱 Device: {client_ua[:50]}...",
-            "action_url": "/settings"
-        })
+        try:
+            sb_insert("notifications", {
+                "user_id": user["id"],
+                "type": "warning",
+                "title": "New Login Detected",
+                "message": f"A new device logged into your JEXI account.\n\n📍 IP: {client_ip}\n📱 Device: {client_ua[:50]}...",
+                "action_url": "/settings"
+            })
+        except: pass
 
         return {
             "status": "success",
