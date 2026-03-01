@@ -60,11 +60,18 @@ def sb_delete(table: str, filter_col: str, filter_val) -> None:
         resp.raise_for_status()
 
 
-def sb_count(table: str) -> int:
-    """Count rows in a table."""
-    url = f"{SUPABASE_URL}/rest/v1/{table}?select=id"
+def sb_count(table: str, filters: dict = None, query_string: str = None) -> int:
+    """Count rows in a table with optional filters."""
+    url = f"{SUPABASE_URL}/rest/v1/{table}?select=count"
+    if filters:
+        for key, value in filters.items():
+            url += f"&{key}=eq.{value}"
+    if query_string:
+        url += f"&{query_string}"
+        
     headers = {**_headers(), "Prefer": "count=exact"}
     with httpx.Client(timeout=10) as client:
+        # Use HEAD request to get just the count via headers
         resp = client.head(url, headers=headers)
         resp.raise_for_status()
         content_range = resp.headers.get("content-range", "0-0/0")
