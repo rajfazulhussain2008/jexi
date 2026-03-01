@@ -46,7 +46,8 @@ def is_session_valid(jti: str) -> bool:
         
         session = rows[0]
         return not session.get("is_revoked", False)
-    except Exception:
+    except Exception as e:
+        print(f"DEBUG: Session check failed for JTI {jti}: {e}")
         return True # Fail open to prevent locking everyone out if DB is slow
 
 
@@ -93,11 +94,12 @@ async def get_current_user(request: Request) -> int:
 
     jti = payload.get("jti")
     # Only check session revocation if a JTI is present in the token
-    if jti and not is_session_valid(jti):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session has been revoked or logged out from another device",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
+    if jti:
+        if not is_session_valid(jti):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session revoked. Please log in again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    
     return user_id

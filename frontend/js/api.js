@@ -57,11 +57,14 @@ class API {
             const response = await fetch(`${this.baseUrl}${path}`, options);
 
             if (response.status === 401) {
-                // Only auto-logout if the token itself is invalid (not for missing endpoints)
+                // Determine if we should force logout
                 if (path.includes("/auth/me") || path.includes("/auth/login")) {
                     this.logout();
                 }
-                throw new Error("Unauthorized. Please log in again.");
+
+                // Extract actual error detail if available
+                const msg = (data && data.detail) ? data.detail : "Unauthorized. Please log in again.";
+                throw new Error(msg);
             }
 
             let data = null;
