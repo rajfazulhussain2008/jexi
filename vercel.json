@@ -35,6 +35,10 @@
             "dest": "/frontend/sw.js"
         },
         {
+            "src": "/bot",
+            "dest": "backend/main.py"
+        },
+        {
             "src": "/(.*)",
             "dest": "/frontend/index.html"
         }

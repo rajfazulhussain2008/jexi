@@ -92,6 +92,12 @@ except Exception as e:
     print("Warning: analytics_routes not found.", e)
     analytics_router = None
 
+try:
+    from routes.bot_routes import router as bot_router
+except Exception as e:
+    print("Warning: bot_routes not found.", e)
+    bot_router = None
+
 # Initialize db configuration
 try:
     init_db()
@@ -156,6 +162,8 @@ if learning_router:
     app.include_router(learning_router)
 if analytics_router:
     app.include_router(analytics_router)
+if bot_router:
+    app.include_router(bot_router)
 
 # Locate frontend folder
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
@@ -184,6 +192,14 @@ if os.path.exists(frontend_dir):
         if os.path.exists(sw_path):
             return FileResponse(sw_path, media_type="application/javascript")
         return {"error": "Service worker not found"}
+
+    # Serve bot dashboard
+    @app.get("/bot")
+    async def serve_bot_dashboard():
+        bot_file = os.path.join(frontend_dir, "bot.html")
+        if os.path.exists(bot_file):
+            return FileResponse(bot_file)
+        return {"error": "Bot dashboard not found"}
 
     # Serve index.html for SPA rules
     @app.get("/{full_path:path}")

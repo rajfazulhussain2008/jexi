@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JEXI Telegram Bot Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: rgba(255, 255, 255, 0.04);
+            --border: rgba(255, 255, 255, 0.08);
+            --accent: #4A90E2;
+            --accent2: #9B51E0;
+            --green: #27AE60;
+            --red: #E74C3C;
+            --text: #e8eaf6;
+            --muted: #9095a0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            background-image: radial-gradient(ellipse at 20% 20%, rgba(74, 144, 226, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(155, 81, 224, 0.08) 0%, transparent 60%);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding: 24px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #2CA5E0, #1a7fc7);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #3a7bd5);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(74, 144, 226, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--green), #1e8449);
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--red), #c0392b);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-ghost {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(74, 144, 226, 0.3);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .stat-icon {
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: rgba(39, 174, 96, 0.15);
+            color: var(--green);
+        }
+
+        .badge-inactive {
+            background: rgba(231, 76, 60, 0.15);
+            color: var(--red);
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+
+        .dot-green {
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        .dot-red {
+            background: var(--red);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .command-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+        }
+
+        .command-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .cmd-icon {
+            font-size: 18px;
+            padding-top: 2px;
+        }
+
+        .cmd-name {
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .cmd-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .webhook-box {
+            background: rgba(74, 144, 226, 0.05);
+            border: 1px dashed rgba(74, 144, 226, 0.3);
+            border-radius: 10px;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 13px;
+            color: var(--accent);
+            word-break: break-all;
+            margin-bottom: 16px;
+        }
+
+        .alert {
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-info {
+            background: rgba(74, 144, 226, 0.1);
+            border: 1px solid rgba(74, 144, 226, 0.2);
+            color: #7ab3e8;
+        }
+
+        .alert-success {
+            background: rgba(39, 174, 96, 0.1);
+            border: 1px solid rgba(39, 174, 96, 0.2);
+            color: #5dca85;
+        }
+
+        .alert-error {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid rgba(231, 76, 60, 0.2);
+            color: #e88070;
+        }
+
+        #logBox {
+            background: #050508;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            color: #7ec8a3;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+        }
+
+        .log-time {
+            color: #555;
+        }
+
+        .log-ok {
+            color: #27AE60;
+        }
+
+        .log-err {
+            color: #E74C3C;
+        }
+
+        .log-info {
+            color: #4A90E2;
+        }
+
+        .qr-section {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .bot-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #2CA5E0, #1a7fc7);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            margin-top: 16px;
+        }
+
+        .bot-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(44, 165, 224, 0.4);
+        }
+
+        .separator {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 20px 0;
+        }
+
+        #statusMsg {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 8px;
+        }
+
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div class="header-icon">🤖</div>
+        <div>
+            <h1>JEXI Telegram Bot Dashboard</h1>
+            <p>Manage your cloud-hosted AI assistant bot</p>
+        </div>
+        <div class="header-actions">
+            <a href="/" class="btn btn-ghost">← Back to JEXI</a>
+            <button class="btn btn-primary" onclick="refreshStatus()">🔄 Refresh</button>
+        </div>
+    </div>
+
+    <!-- Status Cards -->
+    <div class="grid">
+        <div class="stat-card">
+            <div class="stat-icon">🤖</div>
+            <div class="stat-label">Bot Status</div>
+            <div class="stat-value" id="botStatus">…</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🌐</div>
+            <div class="stat-label">Webhook</div>
+            <div class="stat-value" id="webhookStatus">…</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-label">Active Sessions</div>
+            <div class="stat-value" id="activeSessions">…</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📬</div>
+            <div class="stat-label">Pending Updates</div>
+            <div class="stat-value" id="pendingUpdates">…</div>
+        </div>
+    </div>
+
+    <!-- Webhook Control Panel -->
+    <div class="panel">
+        <div class="panel-title">⚙️ Webhook Control</div>
+        <div class="alert alert-info">
+            ℹ️ The webhook makes the bot run <strong>24/7 on Vercel</strong> — no PC required!
+        </div>
+        <div class="webhook-box" id="webhookUrl">Loading…</div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-success" onclick="activateWebhook()">✅ Activate Webhook (Go Live)</button>
+            <button class="btn btn-danger" onclick="deleteWebhook()">🗑️ Remove Webhook</button>
+        </div>
+        <div id="statusMsg"></div>
+        <div id="logBox" style="margin-top: 16px;"></div>
+    </div>
+
+    <!-- Commands Reference -->
+    <div class="panel">
+        <div class="panel-title">📋 Bot Commands</div>
+        <div class="command-grid">
+            <div class="command-item">
+                <div class="cmd-icon">👋</div>
+                <div>
+                    <div class="cmd-name">/start or /help</div>
+                    <div class="cmd-desc">Show welcome message and command list</div>
+                </div>
+            </div>
+            <div class="command-item">
+                <div class="cmd-icon">🔑</div>
+                <div>
+                    <div class="cmd-name">/login username pass</div>
+                    <div class="cmd-desc">Log into your JEXI account</div>
+                </div>
+            </div>
+            <div class="command-item">
+                <div class="cmd-icon">📝</div>
+                <div>
+                    <div class="cmd-name">/register username pass</div>
+                    <div class="cmd-desc">Create a new account</div>
+                </div>
+            </div>
+            <div class="command-item">
+                <div class="cmd-icon">🚪</div>
+                <div>
+                    <div class="cmd-name">/logout</div>
+                    <div class="cmd-desc">Logout from the bot session</div>
+                </div>
+            </div>
+            <div class="command-item">
+                <div class="cmd-icon">🤖</div>
+                <div>
+                    <div class="cmd-name">/ai</div>
+                    <div class="cmd-desc">Switch to AI Assistant mode</div>
+                </div>
+            </div>
+            <div class="command-item">
+                <div class="cmd-icon">👥</div>
+                <div>
+                    <div class="cmd-name">/friends</div>
+                    <div class="cmd-desc">List friends and start chatting</div>
+                </div>
+            </div>
+            <div class="command-item">
+                <div class="cmd-icon">👑</div>
+                <div>
+                    <div class="cmd-name">/admin_users</div>
+                    <div class="cmd-desc">Admin: List all JEXI users</div>
+                </div>
+            </div>
+            <div class="command-item">
+                <div class="cmd-icon">➕</div>
+                <div>
+                    <div class="cmd-name">/create_user user pass</div>
+                    <div class="cmd-desc">Admin: Create a new user account</div>
+                </div>
+            </div>
+            <div class="command-item">
+                <div class="cmd-icon">💡</div>
+                <div>
+                    <div class="cmd-name">/suggestions</div>
+                    <div class="cmd-desc">Admin: View AI-refined suggestions</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open in Telegram -->
+    <div class="panel">
+        <div class="panel-title">🚀 Open Bot in Telegram</div>
+        <div class="qr-section">
+            <p style="color: var(--muted); font-size: 14px;">Share this link with your friends to get them started:</p>
+            <a id="botLink" href="https://t.me/JEXIAIASSISTANTBot" target="_blank" class="bot-link">
+                ✈️ Open <span id="botUsername">@JEXIAIASSISTANTBot</span> on Telegram
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api/v1/bot';
+
+        function log(msg, type = 'info') {
+            const box = document.getElementById('logBox');
+            const now = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML = `<span class="log-time">[${now}]</span> <span class="log-${type}">${msg}</span>`;
+            box.prepend(div);
+        }
+
+        function setMsg(msg, color = '#7ab3e8') {
+            const el = document.getElementById('statusMsg');
+            el.style.color = color;
+            el.textContent = msg;
+        }
+
+        async function refreshStatus() {
+            try {
+                const resp = await fetch(`${API}/status`);
+                const json = await resp.json();
+                if (json.status !== 'success') throw new Error(json.detail || 'Unknown error');
+                const d = json.data;
+
+                document.getElementById('botStatus').innerHTML =
+                    `<span class="status-badge badge-active"><span class="dot dot-green"></span> ${d.bot_name || 'Online'}</span>`;
+
+                const isActive = d.webhook_active;
+                document.getElementById('webhookStatus').innerHTML =
+                    `<span class="status-badge ${isActive ? 'badge-active' : 'badge-inactive'}">
+                    <span class="dot ${isActive ? 'dot-green' : 'dot-red'}"></span>
+                    ${isActive ? 'Active' : 'Not Set'}
+                </span>`;
+
+                document.getElementById('activeSessions').textContent = d.active_sessions || '0';
+                document.getElementById('pendingUpdates').textContent = d.pending_updates ?? '0';
+                document.getElementById('webhookUrl').textContent = d.webhook_url || 'No webhook registered';
+
+                if (d.bot_username) {
+                    document.getElementById('botUsername').textContent = '@' + d.bot_username;
+                    document.getElementById('botLink').href = `https://t.me/${d.bot_username}`;
+                }
+
+                if (d.last_error) log('⚠️ Last webhook error: ' + d.last_error, 'err');
+                log('✅ Status refreshed successfully.', 'ok');
+            } catch (e) {
+                log('❌ Failed to load status: ' + e.message, 'err');
+                document.getElementById('botStatus').textContent = 'Error';
+            }
+        }
+
+        async function activateWebhook() {
+            setMsg('⏳ Registering webhook with Telegram...', '#f2994a');
+            log('🔄 Setting webhook...', 'info');
+            try {
+                const webhookUrl = `${window.location.origin}/api/v1/bot/webhook`;
+                const resp = await fetch(`${API}/set-webhook`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: webhookUrl })
+                });
+                const json = await resp.json();
+                if (json.status === 'success') {
+                    setMsg('✅ Webhook activated! The bot is now live 24/7 on Vercel.', '#27AE60');
+                    log('✅ Webhook set to: ' + webhookUrl, 'ok');
+                    setTimeout(refreshStatus, 1500);
+                } else {
+                    setMsg('❌ Failed: ' + JSON.stringify(json.telegram_response), '#E74C3C');
+                    log('❌ Telegram rejected the webhook.', 'err');
+                }
+            } catch (e) {
+                setMsg('❌ Error: ' + e.message, '#E74C3C');
+                log('❌ ' + e.message, 'err');
+            }
+        }
+
+        async function deleteWebhook() {
+            if (!confirm('Remove the webhook? The bot will stop working on Vercel.')) return;
+            setMsg('⏳ Removing webhook...', '#f2994a');
+            try {
+                const resp = await fetch(`${API}/webhook`, { method: 'DELETE' });
+                const json = await resp.json();
+                if (json.status === 'success') {
+                    setMsg('ℹ️ Webhook removed. Bot is now offline on Vercel.', '#f2994a');
+                    log('🗑️ Webhook deleted.', 'info');
+                    setTimeout(refreshStatus, 1500);
+                }
+            } catch (e) {
+                setMsg('❌ Error: ' + e.message, '#E74C3C');
+            }
+        }
+
+        // Auto-load on page open
+        refreshStatus();
+        setInterval(refreshStatus, 30000); // Auto-refresh every 30s
+    </script>
+
+</body>
+
+</html>
