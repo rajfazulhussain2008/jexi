@@ -3517,3 +3517,58 @@ p {
         padding: 0.5rem;
     }
 }
+
+/* Session Management Styles */
+.session-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.session-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--c-brand);
+}
+
+.session-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.session-device {
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.session-meta {
+    font-size: 0.8rem;
+    opacity: 0.6;
+}
+
+.current-session-badge {
+    font-size: 0.65rem;
+    background: var(--c-success);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.border-top-1px {
+    border-top: 1px solid var(--border-color);
+}
+
+.pt-3 {
+    padding-top: 0.75rem;
+}
