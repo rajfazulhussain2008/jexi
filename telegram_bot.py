@@ -27,6 +27,43 @@ bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 # --- Deduplication: Track suggestions already sent to admins this session ---
 processed_suggestion_ids = set()
 
+# --- Local AI Chat History Cache (in-memory fallback for fast response) ---
+# Format: {chat_id: [{"role": "user"|"ai", "text": "...", "time": "HH:MM"}]}
+local_chat_cache: dict = {}
+MAX_LOCAL_CACHE = 50  # Keep last 50 messages per user locally
+
+def get_session_id(chat_id):
+    """Returns a stable session ID tied to the Telegram user. 
+    Using 'tg_<chat_id>' ensures the AI backend always finds the SAME conversation history."""
+    return f"tg_{chat_id}"
+
+def add_to_local_cache(chat_id, role, text):
+    """Add a message to the local in-memory chat cache."""
+    if chat_id not in local_chat_cache:
+        local_chat_cache[chat_id] = []
+    now_ist = (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%H:%M")
+    local_chat_cache[chat_id].append({"role": role, "text": text, "time": now_ist})
+    # Trim to max size
+    if len(local_chat_cache[chat_id]) > MAX_LOCAL_CACHE:
+        local_chat_cache[chat_id] = local_chat_cache[chat_id][-MAX_LOCAL_CACHE:]
+
+def fetch_ai_history_from_cloud(token, session_id, limit=10):
+    """Fetch old AI conversation history from the JEXI backend (Supabase)."""
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = httpx.get(
+            f"{JEXI_BASE_URL}/ai/history",
+            params={"session_id": session_id, "limit": limit},
+            headers=headers, timeout=10.0
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("data", []) if isinstance(data, dict) else data
+    except Exception:
+        pass
+    return []
+
+
 def get_jexi_token(chat_id):
     """Retrieve the API token for the specific user/chat session."""
     return user_tokens.get(chat_id)
@@ -40,25 +77,31 @@ def set_user_mode(chat_id, mode_type, f_id=None, f_name=None):
 # --- Core API Calls ---
 
 def ask_jexi_ai(message_text, chat_id, token):
-    """Send user text to JEXI AI API."""
+    """Send user text to JEXI AI API with persistent session memory."""
     try:
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
-        payload = {"message": message_text, "session_id": str(chat_id)}
-        
+        # Use stable session ID so AI backend always uses the SAME history
+        session_id = get_session_id(chat_id)
+        payload = {"message": message_text, "session_id": session_id}
+
         response = httpx.post(f"{JEXI_BASE_URL}/ai/chat", json=payload, headers=headers, timeout=45.0)
-        
+
         if response.status_code == 401:
             if chat_id in user_tokens: del user_tokens[chat_id]
             return "⏳ Your secure session expired. Please send your `/login <username> <password>` command again."
-            
+
         response.raise_for_status()
         data = response.json()
-        
+
         if data.get("status") == "success":
-            return data["data"]["text"]
+            reply_text = data["data"]["text"]
+            # Save to local cache so /myhistory works even if cloud is slow
+            add_to_local_cache(chat_id, "user", message_text)
+            add_to_local_cache(chat_id, "ai", reply_text)
+            return reply_text
         return f"Brain connection error: {data.get('message', 'Unknown Error')}"
     except httpx.TimeoutException:
         return "I'm thinking too hard! (The request timed out)"
@@ -102,8 +145,9 @@ def send_welcome(message):
         "`/register username password` — Create a new account\n"
         "`/logout` — Log out securely\n\n"
         "━━━━━━━━━━━━━━━━\n"
-        "💬 **Features:**\n"
-        "`/ai` — Talk to JEXI AI Assistant\n"
+        "💬 *Features:*\n"
+        "`/ai` — Talk to JEXI AI\n"
+        "`/myhistory` — View your last 10 AI messages 🧠\n"
         "`/friends` — Chat with friends\n\n"
         "━━━━━━━━━━━━━━━━\n"
         "👑 **Admin Only:**\n"
@@ -147,18 +191,38 @@ def login_user(message):
         
         if data.get("status") == "success":
             login_data = data.get("data", {})
-            user_tokens[chat_id] = login_data.get("token", "")
-            user_backend_ids[chat_id] = login_data.get("id")  # Fixed: id is inside data.data
-            
-            # Grant admin super-powers in Telegram
+            token = login_data.get("token", "")
+            user_tokens[chat_id] = token
+            user_backend_ids[chat_id] = login_data.get("id")
             admin_users[chat_id] = login_data.get("is_admin", False)
-            
-            set_user_mode(chat_id, "ai") # Default to AI mode
+            set_user_mode(chat_id, "ai")
+
             admin_tag = " 👑 *[Admin]*" if admin_users[chat_id] else ""
-            bot.reply_to(message, f"✅ **Login Successful!**\n\nWelcome, *{username}*{admin_tag}! You are now speaking to **JEXI AI**.\nType `/friends` to chat with real people!", parse_mode="Markdown")
-            
+            bot.reply_to(message,
+                f"✅ *Login Successful!*\n\n"
+                f"Welcome back, *{username}*{admin_tag}!\n"
+                f"🧠 JEXI AI is ready. I remember our past conversations!\n"
+                f"Type anything to continue. Use `/myhistory` to see our last chat.",
+                parse_mode="Markdown")
+
             try: bot.delete_message(chat_id, message.message_id)
             except: pass
+
+            # Greet with last AI message from cloud history
+            try:
+                session_id = get_session_id(chat_id)
+                history = fetch_ai_history_from_cloud(token, session_id, limit=5)
+                if history:
+                    # Find last AI message
+                    ai_msgs = [m for m in reversed(history) if m.get("role") == "assistant"]
+                    if ai_msgs:
+                        last_reply = ai_msgs[0]["content"][:300]
+                        bot.send_message(chat_id,
+                            f"💭 *Last time I told you:*\n_{last_reply}..._",
+                            parse_mode="Markdown")
+            except Exception:
+                pass  # Don't fail login if history fetch fails
+
         else:
             bot.reply_to(message, "❌ Server login failed. Please check your username and password.")
     except Exception as e:
@@ -393,13 +457,65 @@ def handle_view_suggestions(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Error: {e}")
 
+@bot.message_handler(commands=['myhistory'])
+def show_my_ai_history(message):
+    """Show the last 10 AI chat messages for the user."""
+    chat_id = message.chat.id
+    token = get_jexi_token(chat_id)
+    if not token:
+        bot.reply_to(message, "🔒 Please `/login` first.", parse_mode="Markdown")
+        return
+
+    bot.send_chat_action(chat_id, 'typing')
+
+    # Try cloud history first
+    session_id = get_session_id(chat_id)
+    cloud_history = fetch_ai_history_from_cloud(token, session_id, limit=10)
+
+    if cloud_history:
+        report = "🧠 *Your JEXI AI Conversation History*\n\n"
+        for msg in cloud_history[-10:]:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")[:200]
+            icon = "👤 You" if role == "user" else "🤖 JEXI"
+            # Try to parse timestamp
+            raw_ts = msg.get("created_at", "") or msg.get("timestamp", "")
+            ts_str = ""
+            if raw_ts:
+                try:
+                    dt_utc = datetime.fromisoformat(raw_ts.replace('Z', '+00:00'))
+                    dt_ist = dt_utc + timedelta(hours=5, minutes=30)
+                    ts_str = f" _{dt_ist.strftime('%d %b, %H:%M')}_"
+                except Exception:
+                    pass
+            report += f"*{icon}*{ts_str}:\n{content}\n{'—' * 12}\n\n"
+
+        if len(report) > 4000:
+            report = report[-4000:]
+
+        bot.reply_to(message, report, parse_mode="Markdown")
+        return
+
+    # Fallback to local in-memory cache this session
+    local = local_chat_cache.get(chat_id, [])
+    if local:
+        report = "🧠 *Your AI Chat This Session*\n_(Full cloud history unavailable right now)_\n\n"
+        for entry in local[-10:]:
+            icon = "👤 You" if entry["role"] == "user" else "🤖 JEXI"
+            report += f"*{icon}* [{entry['time']}]:\n{entry['text'][:200]}\n{'—' * 12}\n\n"
+        bot.reply_to(message, report, parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "📭 No AI conversation history found yet.\n\nStart chatting with JEXI AI and it will be stored here!", parse_mode="Markdown")
+
+
 @bot.message_handler(commands=['ai'])
 def switch_to_ai(message):
     chat_id = message.chat.id
     if not get_jexi_token(chat_id):
         bot.reply_to(message, "🔒 Please `/login username pass` first.")
         return
-        
+
+
     set_user_mode(chat_id, "ai")
     bot.reply_to(message, "🤖 **Mode switched to AI Assistant.** Any message you send now will go to JEXI.")
 
