@@ -24,6 +24,9 @@ user_modes = {}  # Keeps track of whether user is talking to "ai" or a specific 
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
+# --- Deduplication: Track suggestions already sent to admins this session ---
+processed_suggestion_ids = set()
+
 def get_jexi_token(chat_id):
     """Retrieve the API token for the specific user/chat session."""
     return user_tokens.get(chat_id)
@@ -534,64 +537,93 @@ def process_text(message):
              # to fetch recent messages.
 
 def poll_suggestions():
+    """Poll for new unprocessed suggestions and notify admins. Uses in-memory dedup."""
+    global processed_suggestion_ids
     while True:
-        time.sleep(15)  # Poll every 15 seconds
+        time.sleep(60)  # Poll every 60 seconds (was 15 — too aggressive)
         admin_chat_id = None
         for cid, is_admin in list(admin_users.items()):
             if is_admin:
                 admin_chat_id = cid
                 break
-                
+
         if not admin_chat_id:
             continue
-            
+
         token = get_jexi_token(admin_chat_id)
         if not token:
             continue
-            
+
         try:
             headers = {"Authorization": f"Bearer {token}"}
             resp = httpx.get(f"{JEXI_BASE_URL}/admin/suggestions", headers=headers, timeout=10.0)
-            if resp.status_code == 200:
-                data = resp.json()
-                # Iterate over the 'unprocessed' list specifically
-                suggestions = data.get("unprocessed", [])
-                for sugg in suggestions:
-                    # AI refine the suggestion
-                    prompt = f"A user suggested this for my platform: '{sugg['value']}'. As an expert AI, evaluate this suggestion and give me a clear, step-by-step action plan on what I should do."
-                    
-                    ai_payload = {"message": prompt, "session_id": f"admin_suggestion_{sugg['id']}"}
+            if resp.status_code != 200:
+                continue
+
+            data = resp.json()
+            suggestions = data.get("unprocessed", [])
+
+            for sugg in suggestions:
+                sugg_id = sugg.get("id")
+
+                # ✅ DEDUP FIX: Skip if we already processed this suggestion this session
+                if sugg_id in processed_suggestion_ids:
+                    continue
+
+                # Mark as seen IMMEDIATELY before any async work to prevent double-send
+                processed_suggestion_ids.add(sugg_id)
+
+                # AI refine the suggestion
+                prompt = f"A user suggested this for my platform: '{sugg['value']}'. As an expert AI, evaluate this suggestion and give me a clear, step-by-step action plan on what I should do."
+                ai_payload = {"message": prompt, "session_id": f"admin_suggestion_{sugg_id}"}
+
+                try:
                     ai_resp = httpx.post(f"{JEXI_BASE_URL}/ai/chat", json=ai_payload, headers=headers, timeout=45.0)
-                    
-                    if ai_resp.status_code == 200:
-                        plan = ai_resp.json()["data"]["text"]
-                        
-                        msg = f"💡 **New Application Suggestion from User!**\n\n"
-                        msg += f"**Suggestion:** _{sugg['value']}_\n\n"
-                        msg += f"🤖 **AI Analysis & Action Plan:**\n{plan}"
-                        
+                    if ai_resp.status_code != 200:
+                        continue
 
-                        # Notify all admins
-                        for cid, is_admin in list(admin_users.items()):
-                            if is_admin:
-                                bot.send_message(cid, msg, parse_mode="Markdown")
+                    plan = ai_resp.json()["data"]["text"]
+                    msg = (
+                        f"💡 **New Suggestion Alert!**\n\n"
+                        f"**Suggestion:** _{sugg['value']}_\n\n"
+                        f"🤖 **AI Action Plan:**\n{plan}"
+                    )
 
-                        # Save the refined plan back to memory_facts so /suggestions can read it later
-                        refined_storage = {
-                            "user_id": user_backend_ids.get(admin_chat_id, 1), 
-                            "key": f"ai_plan_{sugg['id']}",
+                    # Notify all admins (only ONCE per suggestion)
+                    for cid, is_admin in list(admin_users.items()):
+                        if is_admin:
+                            bot.send_message(cid, msg, parse_mode="Markdown")
+
+                    # Save to memory_facts for /suggestions command
+                    try:
+                        from supabase_rest import sb_insert
+                        sb_insert("memory_facts", {
+                            "user_id": user_backend_ids.get(admin_chat_id, 1),
+                            "key": f"ai_plan_{sugg_id}",
                             "value": f"💡 **Suggestion:** {sugg['value']}\n\n🤖 **AI Plan:** {plan}",
                             "auto_extracted": False
-                        }
-                        
-                        # Use internal admin headers for direct insert if possible, or defined JEXI auth
-                        from supabase_rest import sb_insert
-                        sb_insert("memory_facts", refined_storage)
-                        
-                        # Delete the RAW suggestion so it's not processed again
-                        httpx.delete(f"{JEXI_BASE_URL}/admin/suggestions/{sugg['id']}", headers=headers, timeout=10.0)
-        except Exception as e:
-            pass
+                        })
+                    except Exception as save_err:
+                        print(f"[BOT] Could not save suggestion plan: {save_err}")
+
+                    # Delete the raw suggestion from DB so it won't appear in 'unprocessed' again
+                    try:
+                        del_resp = httpx.delete(
+                            f"{JEXI_BASE_URL}/admin/suggestions/{sugg_id}",
+                            headers=headers, timeout=10.0
+                        )
+                        if del_resp.status_code not in [200, 204]:
+                            print(f"[BOT] Warning: Could not delete suggestion {sugg_id}: {del_resp.status_code}")
+                    except Exception as del_err:
+                        print(f"[BOT] Delete error for suggestion {sugg_id}: {del_err}")
+
+                except Exception as ai_err:
+                    print(f"[BOT] AI refinement error for suggestion {sugg_id}: {ai_err}")
+                    # Remove from processed set so it retries next cycle
+                    processed_suggestion_ids.discard(sugg_id)
+
+        except Exception as poll_err:
+            print(f"[BOT] poll_suggestions error: {poll_err}")
 
 def poll_chat_messages():
     """Poll for new incoming messages from friends for all logged-in users."""
