@@ -44,6 +44,42 @@ except Exception as e:
     print("Warning: notification_routes not found or failed to load.", e)
     notification_router = None
 
+try:
+    from routes.task_routes import router as task_router
+except Exception as e:
+    print("Warning: task_routes not found.", e)
+    task_router = None
+
+try:
+    from routes.goal_routes import router as goal_router
+except Exception as e:
+    print("Warning: goal_routes not found.", e)
+    goal_router = None
+
+try:
+    from routes.habit_routes import router as habit_router
+except Exception as e:
+    print("Warning: habit_routes not found.", e)
+    habit_router = None
+
+try:
+    from routes.journal_routes import router as journal_router
+except Exception as e:
+    print("Warning: journal_routes not found.", e)
+    journal_router = None
+
+try:
+    from routes.finance_routes import router as finance_router
+except Exception as e:
+    print("Warning: finance_routes not found.", e)
+    finance_router = None
+
+try:
+    from routes.health_routes import router as health_router
+except Exception as e:
+    print("Warning: health_routes not found.", e)
+    health_router = None
+
 # Initialize db configuration
 try:
     init_db()
@@ -92,6 +128,18 @@ if admin_router:
     app.include_router(admin_router)
 if notification_router:
     app.include_router(notification_router)
+if task_router:
+    app.include_router(task_router)
+if goal_router:
+    app.include_router(goal_router)
+if habit_router:
+    app.include_router(habit_router)
+if journal_router:
+    app.include_router(journal_router)
+if finance_router:
+    app.include_router(finance_router)
+if health_router:
+    app.include_router(health_router)
 
 # Locate frontend folder
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
