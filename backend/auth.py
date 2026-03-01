@@ -84,17 +84,16 @@ async def get_current_user(request: Request) -> int:
         )
 
     user_id = payload.get("user_id")
-    jti = payload.get("jti")
-    
-    if user_id is None or jti is None:
+    if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token payload missing required claims",
+            detail="Token payload missing user_id",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Check if session is revoked
-    if not is_session_valid(jti):
+    jti = payload.get("jti")
+    # Only check session revocation if a JTI is present in the token
+    if jti and not is_session_valid(jti):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session has been revoked or logged out from another device",
